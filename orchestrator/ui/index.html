@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Trader Orchestrator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 1.1em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #4a5568;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .bot-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .bot-item {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid#667eea;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .bot-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .bot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .bot-name {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .bot-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .status-running {
+            background: #48bb78;
+            color: white;
+        }
+
+        .status-stopped {
+            background: #cbd5e0;
+            color: #4a5568;
+        }
+
+        .bot-info {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            font-size: 0.9em;
+        }
+
+        .info-label {
+            color: #718096;
+            font-weight: 600;
+        }
+
+        .info-value {
+            color: #2d3748;
+            font-weight: 700;
+        }
+
+        .bot-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .bot-btn {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-start {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-stop {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .bot-btn:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+
+        .api-info {
+            background: #edf2f7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .api-info code {
+            background: #2d3748;
+            color: #48bb78;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI-Trader Orchestrator</h1>
+            <p class="subtitle">Управление торговыми ботами с ИИ-аналитикой</p>
+        </div>
+
+        <div class="grid">
+            <!-- Create Bot Form  -->
+            <div class="card">
+                <h2>Создать нового бота</h2>
+                <form id="createBotForm">
+                    <div class="form-group">
+                        <label for="botName">Имя бота</label>
+                        <input type="text" id="botName" placeholder="btc-bot-1" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pair">Торговая пара</label>
+                        <input type="text" id="pair" placeholder="BTC/USDT" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="timeframe">Таймфрейм</label>
+                        <select id="timeframe">
+                            <option value="15m">15 минут</option>
+                            <option value="30m">30 минут</option>
+                            <option value="1h">1 час</option>
+                            <option value="4h">4 часа</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mode">Режим</label>
+                        <select id="mode">
+                            <option value="demo">Demo (Paper Trading)</option>
+                            <option value="real">Real (Live Trading)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rsi_oversold">RSI Oversold</label>
+                        <input type="number" id="rsi_oversold" value="30" min="0" max="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rsi_overbought">RSI Overbought</label>
+                        <input type="number" id="rsi_overbought" value="70" min="0" max="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="min_impact_score">Min Impact Score</label>
+                        <input type="number" id="min_impact_score" value="0.3" step="0.1" min="0" max="1">
+                    </div>
+
+                    <button type="submit" class="btn">Создать бота</button>
+                </form>
+
+                <div class="api-info">
+                    <strong>API Endpoint:</strong><br>
+                    <code>http://localhost:8080/docs</code>
+                </div>
+            </div>
+
+            <!-- Bot List -->
+            <div class="card">
+                <h2>Активные боты</h2>
+                <div id="botList" class="bot-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Загрузка ботов...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+
+        // Load bots on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadBots();
+            setInterval(loadBots, 5000); // Refresh every 5 seconds
+        });
+
+        // Create bot form submission
+        document.getElementById('createBotForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const botData = {
+                name: document.getElementById('botName').value,
+                pair: document.getElementById('pair').value,
+                timeframe: document.getElementById('timeframe').value,
+                mode: document.getElementById('mode').value,
+                params: {
+                    rsi_period: 14,
+                    rsi_oversold: parseInt(document.getElementById('rsi_oversold').value),
+                    rsi_overbought: parseInt(document.getElementById('rsi_overbought').value),
+                    stop_loss: -0.05,
+                    take_profit: 0.10,
+                    max_position_size: 100.0,
+                    enable_ai_analysis: true,
+                    news_check_interval: 3600,
+                    min_impact_score: parseFloat(document.getElementById('min_impact_score').value)
+                }
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/bots/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(botData)
+                });
+
+                if (response.ok) {
+                    alert('Бот успешно создан!');
+                    document.getElementById('createBotForm').reset();
+                    loadBots();
+                } else {
+                    const error = await response.json();
+                    alert(`Ошибка: ${error.detail}`);
+                }
+            } catch (error) {
+                alert(`Ошибка соединения: ${error.message}`);
+            }
+        });
+
+        // Load bots
+        async function loadBots() {
+            try {
+                const response = await fetch(`${API_BASE}/bots/list`);
+                const bots = await response.json();
+
+                const botList = document.getElementById('botList');
+
+                if (bots.length === 0) {
+                    botList.innerHTML = '<p class="loading">Нет активных ботов</p>';
+                    return;
+                }
+
+                botList.innerHTML = bots.map(bot => `
+                    <div class="bot-item">
+                        <div class="bot-header">
+                            <div class="bot-name">${bot.name}</div>
+                            <div class="bot-status status-${bot.status}">${bot.status.toUpperCase()}</div>
+                        </div>
+                        <div class="bot-info">
+                            <div class="info-item">
+                                <div class="info-label">Пара</div>
+                                <div class="info-value">${bot.pair}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Таймфрейм</div>
+                                <div class="info-value">${bot.timeframe}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Режим</div>
+                                <div class="info-value">${bot.mode}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Профит</div>
+                                <div class="info-value" style="color: ${bot.current_profit >= 0 ? '#48bb78' : '#f56565'}">
+                                    ${bot.current_profit.toFixed(2)}%
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Сделки</div>
+                                <div class="info-value">${bot.total_trades}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">ID</div>
+                                <div class="info-value">#${bot.id}</div>
+                            </div>
+                        </div>
+                        <div class="bot-actions">
+                            ${bot.status === 'stopped' ? 
+                                `<button class="bot-btn btn-start" onclick="startBot(${bot.id})">▶ Запустить</button>` :
+                                `<button class="bot-btn btn-stop" onclick="stopBot(${bot.id})">⏸ Остановить</button>`
+                            }
+                            <button class="bot-btn btn-delete" onclick="deleteBot(${bot.id}, '${bot.name}')">🗑 Удалить</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('botList').innerHTML = 
+                    `<p class="loading">Ошибка загрузки: ${error.message}<br>Проверьте, что API сервер запущен на http://localhost:8080</p>`;
+            }
+        }
+
+        // Start bot
+        async function startBot(id) {
+            try {
+                const response = await fetch(`${API_BASE}/bots/${id}/start`, { method: 'POST' });
+                if (response.ok) {
+                    alert('Бот запущен!');
+                    loadBots();
+                } else {
+                    alert('Ошибка запуска бота');
+                }
+            } catch (error) {
+                alert(`Ошибка: ${error.message}`);
+            }
+        }
+
+        // Stop bot
+        async function stopBot(id) {
+            try {
+                const response = await fetch(`${API_BASE}/bots/${id}/stop`, { method: 'POST' });
+                if (response.ok) {
+                    alert('Бот остановлен!');
+                    loadBots();
+                } else {
+                    alert('Ошибка остановки бота');
+                }
+            } catch (error) {
+                alert(`Ошибка: ${error.message}`);
+            }
+        }
+
+        // Delete bot
+        async function deleteBot(id, name) {
+            if (!confirm(`Удалить бота "${name}"?`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/bots/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    alert('Бот удален!');
+                    loadBots();
+                } else {
+                    alert('Ошибка удаления бота');
+                }
+            } catch (error) {
+                alert(`Ошибка: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

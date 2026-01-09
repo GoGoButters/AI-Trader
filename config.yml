@@ -2,29 +2,26 @@
 # This is the central configuration file for all services and AI models
 
 services:
-  # Graphiti Memory Service
-  graphiti: "url: http://192.168.1.100:8000; token: your_graphiti_token_here"
+  # Graphiti Memory Service (WORKING)
+  graphiti: "url: http://192.168.1.107:8001; token: adapter-secret-api-key"
   
-  # Perplexica News Search Service
-  perplexica: "url: http://192.168.1.100:3001; api_key: your_perplexica_key_here"
-  
-  # KuCoin Exchange - API credentials managed separately in bot configs
-  # kucoin: "api_key: YOUR_KEY; api_secret: YOUR_SECRET; api_passphrase: YOUR_PASS; sandbox: true"
+  # Perplexica News Search Service (will be deployed via docker-compose)
+  perplexica: "url: http://localhost:3000; api_key: dummy"
 
-# AI Models Configuration
+# AI Models Configuration (WORKING MODELS FROM GRAPHITI)
 # Format: "model: [NAME]; api_base: [URL]; api_key: [KEY]"
 models:
   # Primary model for fast analysis
-  primary_analysis: "model: openrouter/xiaomi/mimo-v2-flash:free; api_base: http://192.168.1.1:11434; api_key: sk-1234567890"
+  primary_analysis: "model: openrouter/xiaomi/mimo-v2-flash:free; api_base: http://192.168.1.107:4000/v1; api_key: sk-IRi6AuZjLJ50hmzvjoJgxw"
   
   # Deep reasoning model for complex decisions
-  deep_reasoning: "model: openrouter/z-ai/glm-4.5-air:free; api_base: http://192.168.1.1:11434; api_key: sk-1234567890"
+  deep_reasoning: "model: openai/openai-reasoning; api_base: http://192.168.1.107:4000/v1; api_key: sk-jClmnTDRFFY1-dzQ98c08Q"
   
   # Embeddings model
-  embeddings: "model: Qwen3; api_base: http://192.168.1.1:11434; api_key: sk-1234567890"
+  embeddings: "model: openai/text-embedding-qwen3-embedding-4b; api_base: http://192.168.1.107:4000/v1; api_key: sk-XE8pV1z4WTbJBpGQfI5nEg"
   
-  # Fallback model (used when primary fails)
-  fallback: "model: openrouter/meta-llama/llama-3.2-3b-instruct:free; api_base: http://192.168.1.1:11434; api_key: sk-1234567890"
+  # Fallback model (same as primary for now)
+  fallback: "model: openrouter/xiaomi/mimo-v2-flash:free; api_base: http://192.168.1.107:4000/v1; api_key: sk-IRi6AuZjLJ50hmzvjoJgxw"
 
 # Database Configuration
 database:

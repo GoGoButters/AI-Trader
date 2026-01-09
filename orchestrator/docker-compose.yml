@@ -1,20 +1,25 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database (optional - can use SQLite instead)
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: orchestrator-db
-  #   environment:
-  #     POSTGRES_USER: orchestrator
-  #     POSTGRES_PASSWORD: orchestrator_pass
-  #     POSTGRES_DB: ai_trader
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   ports:
-  #     - "5432:5432"
-  #   networks:
-  #     - ai-trader-network
+  # Perplexica AI News Search
+  perplexica:
+    image: itzcrazykns/perplexica:latest
+    container_name: perplexica-search
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./orchestrator/perplexica-config:/app/config
+      - perplexica_data:/app/data
+    environment:
+      # LLM Configuration (using models from Graphiti server)
+      - OPENAI_API_BASE=http://192.168.1.107:4000/v1
+      - OPENAI_API_KEY=sk-IRi6AuZjLJ50hmzvjoJgxw
+      - CHAT_MODEL=openrouter/xiaomi/mimo-v2-flash:free
+      - EMBEDDING_MODEL=openai/text-embedding-qwen3-embedding-4b
+      - EMBEDDING_API_KEY=sk-XE8pV1z4WTbJBpGQfI5nEg
+    networks:
+      - ai-trader-network
+    restart: unless-stopped
 
   # Orchestrator Backend (FastAPI)
   orchestrator:
@@ -26,7 +31,7 @@ services:
       - "8080:8080"
     volumes:
       - ./:/app
-      - /var/run/docker.sock:/var/run/docker.sock  # For Docker-in-Docker
+      - /var/run/docker.sock:/var/run/docker.sock # For Docker-in-Docker
       - ./orchestrator/data:/app/orchestrator/data
       - ./user_data:/app/user_data
     environment:
@@ -37,43 +42,14 @@ services:
       - ai-trader-network
     restart: unless-stopped
 
-  # Perplexica AI News Search
-  perplexica:
-    image: izcrazykns/perplexica:latest
-    container_name: perplexica-search
-    ports:
-      - "3001:3001"
-    volumes:
-      - perplexica_data:/app/data
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OLLAMA_API_URL=${OLLAMA_API_URL:-http://host.docker.internal:11434}
-    networks:
-      - ai-trader-network
-    restart: unless-stopped
-
-  # Graphiti Memory Service (assuming it's available as Docker image)
-  # graphiti:
-  #   image: graphiti/graphiti:latest
-  #   container_name: graphiti-memory
-  #   ports:
-  #     - "8000:8000"
-  #   volumes:
-  #     - graphiti_data:/app/data
-  #   environment:
-  #     - AUTH_TOKEN=${GRAPHITI_TOKEN:-default_token}
-  #   networks:
-  #     - ai-trader-network
-  #   restart: unless-stopped
-
-  # Frontend (React + Vite)
+  # Frontend (Simple WebUI)
   frontend:
     build:
       context: ./orchestrator/ui
       dockerfile: Dockerfile
     container_name: orchestrator-ui
     ports:
-      - "3000:3000"
+      - "3001:80"
     depends_on:
       - orchestrator
     networks:
@@ -81,9 +57,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  # postgres_data:
   perplexica_data:
-  # graphiti_data:
+
 
 networks:
   ai-trader-network:
