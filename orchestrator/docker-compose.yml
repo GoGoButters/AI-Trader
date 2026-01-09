@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (optional - can use SQLite instead)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: orchestrator-db
+  #   environment:
+  #     POSTGRES_USER: orchestrator
+  #     POSTGRES_PASSWORD: orchestrator_pass
+  #     POSTGRES_DB: ai_trader
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - ai-trader-network
+
+  # Orchestrator Backend (FastAPI)
+  orchestrator:
+    build:
+      context: ./orchestrator/backend
+      dockerfile: Dockerfile
+    container_name: orchestrator-api
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/app
+      - /var/run/docker.sock:/var/run/docker.sock  # For Docker-in-Docker
+      - ./orchestrator/data:/app/orchestrator/data
+      - ./user_data:/app/user_data
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - perplexica
+    networks:
+      - ai-trader-network
+    restart: unless-stopped
+
+  # Perplexica AI News Search
+  perplexica:
+    image: izcrazykns/perplexica:latest
+    container_name: perplexica-search
+    ports:
+      - "3001:3001"
+    volumes:
+      - perplexica_data:/app/data
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OLLAMA_API_URL=${OLLAMA_API_URL:-http://host.docker.internal:11434}
+    networks:
+      - ai-trader-network
+    restart: unless-stopped
+
+  # Graphiti Memory Service (assuming it's available as Docker image)
+  # graphiti:
+  #   image: graphiti/graphiti:latest
+  #   container_name: graphiti-memory
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - graphiti_data:/app/data
+  #   environment:
+  #     - AUTH_TOKEN=${GRAPHITI_TOKEN:-default_token}
+  #   networks:
+  #     - ai-trader-network
+  #   restart: unless-stopped
+
+  # Frontend (React + Vite)
+  frontend:
+    build:
+      context: ./orchestrator/ui
+      dockerfile: Dockerfile
+    container_name: orchestrator-ui
+    ports:
+      - "3000:3000"
+    depends_on:
+      - orchestrator
+    networks:
+      - ai-trader-network
+    restart: unless-stopped
+
+volumes:
+  # postgres_data:
+  perplexica_data:
+  # graphiti_data:
+
+networks:
+  ai-trader-network:
+    driver: bridge

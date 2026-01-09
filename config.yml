@@ -1,0 +1,51 @@
+# AI-Trader Orchestrator Configuration
+# This is the central configuration file for all services and AI models
+
+services:
+  # Graphiti Memory Service
+  graphiti: "url: http://192.168.1.100:8000; token: your_graphiti_token_here"
+  
+  # Perplexica News Search Service
+  perplexica: "url: http://192.168.1.100:3001; api_key: your_perplexica_key_here"
+  
+  # KuCoin Exchange - API credentials managed separately in bot configs
+  # kucoin: "api_key: YOUR_KEY; api_secret: YOUR_SECRET; api_passphrase: YOUR_PASS; sandbox: true"
+
+# AI Models Configuration
+# Format: "model: [NAME]; api_base: [URL]; api_key: [KEY]"
+models:
+  # Primary model for fast analysis
+  primary_analysis: "model: openrouter/xiaomi/mimo-v2-flash:free; api_base: http://192.168.1.1:11434; api_key: sk-1234567890"
+  
+  # Deep reasoning model for complex decisions
+  deep_reasoning: "model: openrouter/z-ai/glm-4.5-air:free; api_base: http://192.168.1.1:11434; api_key: sk-1234567890"
+  
+  # Embeddings model
+  embeddings: "model: Qwen3; api_base: http://192.168.1.1:11434; api_key: sk-1234567890"
+  
+  # Fallback model (used when primary fails)
+  fallback: "model: openrouter/meta-llama/llama-3.2-3b-instruct:free; api_base: http://192.168.1.1:11434; api_key: sk-1234567890"
+
+# Database Configuration
+database:
+  type: "sqlite"  # sqlite or postgresql
+  path: "orchestrator/data/orchestrator.db"  # for SQLite
+  # For PostgreSQL, uncomment and configure:
+  # host: "localhost"
+  # port: 5432
+  # username: "orchestrator"
+  # password: "your_password"
+  # database: "ai_trader"
+
+# Orchestrator Settings
+orchestrator:
+  # Web UI settings
+  ui_port: 3000
+  api_port: 8080
+  
+  # Bot management
+  max_concurrent_bots: 10
+  default_bot_image: "freqtrade/freqtrade:stable"
+  
+  # Auto-restart on server reboot
+  auto_restart: true

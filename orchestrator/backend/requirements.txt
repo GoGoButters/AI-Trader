@@ -1,0 +1,11 @@
+# Orchestrator Backend Dependencies
+
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+sqlalchemy==2.0.36
+pydantic==2.10.3
+pydantic-settings==2.6.1
+aiohttp==3.11.10
+docker==7.1.0
+python-multipart==0.0.20
+pyyaml==6.0.2
