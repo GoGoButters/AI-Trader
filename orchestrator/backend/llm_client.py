@@ -1,231 +1,96 @@
 """
-LLM Client with Fallback Support
+LLM Client - OpenAI-compatible API
 
-Unified client for making LLM requests with automatic fallback handling.
+Supports any OpenAI-compatible endpoint (LiteLLM, vLLM, etc.)
 """
 
 import aiohttp
-from typing import Dict, List, Optional, Any
-from pydantic import BaseModel
 import logging
-import json
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
-class LLMMessage(BaseModel):
-    """Chat message"""
-
-    role: str  # system, user, assistant
-    content: str
-
-
-class LLMResponse(BaseModel):
-    """LLM response"""
-
-    content: str
-    model: str
-    usage: Optional[Dict[str, int]] = None
-
-
 class LLMClient:
     """
-    Unified LLM client with fallback support
+    Async LLM client for OpenAI-compatible APIs.
 
-    Supports OpenRouter-compatible APIs and local LLM servers.
-    Automatically falls back to alternative models on failure.
+    Usage:
+        client = LLMClient(
+            provider="openai",
+            api_key="sk-...",
+            model="gpt-3.5-turbo",
+            api_base="http://192.168.1.107:4000/v1"
+        )
+        response = await client.generate("Classify this news...")
     """
 
-    def __init__(
-        self,
-        model: str,
-        api_base: str,
-        api_key: str,
-        fallback_model: Optional[Dict[str, str]] = None,
-    ):
-        self.model = model
-        self.api_base = api_base.rstrip("/")
+    def __init__(self, provider: str, api_key: str, model: str, api_base: Optional[str] = None):
+        self.provider = provider
         self.api_key = api_key
-        self.fallback_model = fallback_model
+        self.model = model
+        self.api_base = api_base or "https://api.openai.com/v1"
 
-        self.headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+        logger.info(f"LLM Client initialized: {model} @ {self.api_base}")
 
-    async def chat_completion(
-        self,
-        messages: List[LLMMessage],
-        temperature: float = 0.7,
-        max_tokens: int = 1000,
-        use_fallback: bool = True,
-    ) -> Optional[LLMResponse]:
+    async def generate(self, prompt: str, max_tokens: int = 500) -> str:
         """
-        Send a chat completion request
+        Generate text from prompt using chat completions API.
 
         Args:
-            messages: List of chat messages
-            temperature: Sampling temperature
+            prompt: Input prompt
             max_tokens: Maximum tokens to generate
-            use_fallback: Whether to use fallback model on failure
 
         Returns:
-            LLM response or None on failure
+            Generated text
         """
-        request_data = {
+        url = f"{self.api_base}/chat/completions"
+
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
+
+        payload = {
             "model": self.model,
-            "messages": [msg.dict() for msg in messages],
-            "temperature": temperature,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a helpful AI assistant that provides concise, accurate responses.",
+                },
+                {"role": "user", "content": prompt},
+            ],
             "max_tokens": max_tokens,
+            "temperature": 0.7,
         }
 
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.api_base}/v1/chat/completions",
-                    json=request_data,
-                    headers=self.headers,
-                    timeout=aiohttp.ClientTimeout(total=60),
+                    url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=30)
                 ) as response:
-                    response.raise_for_status()
-                    data = await response.json()
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.error(f"LLM API error {response.status}: {error_text}")
+                        raise Exception(f"LLM API returned {response.status}: {error_text}")
 
-                    # Parse response
-                    content = data["choices"][0]["message"]["content"]
+                    result = await response.json()
 
-                    return LLMResponse(content=content, model=self.model, usage=data.get("usage"))
+                    # Extract response
+                    if "choices" in result and len(result["choices"]) > 0:
+                        message = result["choices"][0].get("message", {})
+                        content = message.get("content", "")
 
+                        logger.debug(f"LLM response: {content[:100]}...")
+                        return content
+                    else:
+                        logger.error(f"Unexpected LLM response format: {result}")
+                        raise Exception("Invalid response format from LLM")
+
+        except aiohttp.ClientError as e:
+            logger.error(f"LLM API connection error: {e}")
+            raise Exception(f"Failed to connect to LLM API: {e}")
         except Exception as e:
-            logger.error(f"Error calling LLM {self.model}: {e}")
+            logger.error(f"LLM generation failed: {e}")
+            raise
 
-            # Try fallback if available
-            if use_fallback and self.fallback_model:
-                logger.info(f"Attempting fallback to {self.fallback_model['model']}")
-                fallback_client = LLMClient(
-                    model=self.fallback_model["model"],
-                    api_base=self.fallback_model["api_base"],
-                    api_key=self.fallback_model["api_key"],
-                )
-                return await fallback_client.chat_completion(
-                    messages, temperature, max_tokens, use_fallback=False
-                )
-
-            return None
-
-    async def analyze_correlation(
-        self, news_summary: str, rsi_value: float, price_change: float, pair: str
-    ) -> Dict[str, Any]:
-        """
-        Analyze correlation between news and price movement
-
-        Args:
-            news_summary: Summary of recent news
-            rsi_value: Current RSI value
-            price_change: Recent price change percentage
-            pair: Trading pair
-
-        Returns:
-            Analysis result with impact score
-        """
-        prompt = f"""Analyze the correlation between news and price movement for {pair}.
-
-News Summary:
-{news_summary}
-
-Technical Indicators:
-- RSI: {rsi_value}
-- Price Change: {price_change:.2f}%
-
-Task: Determine the IMPACT SCORE (0.0 to 1.0) of how much the news influenced the price movement.
-Consider:
-1. News sentiment (positive/negative/neutral)
-2. News relevance to {pair}
-3. Correlation with price movement direction
-4. RSI confirmation of trend
-
-Respond in JSON format:
-{{
-  "impact_score": <float 0.0-1.0>,
-  "sentiment": "<positive|negative|neutral>",
-  "confidence": <float 0.0-1.0>,
-  "reasoning": "<brief explanation>"
-}}"""
-
-        messages = [
-            LLMMessage(
-                role="system",
-                content="You are a crypto market analyst. Respond only with valid JSON.",
-            ),
-            LLMMessage(role="user", content=prompt),
-        ]
-
-        response = await self.chat_completion(messages, temperature=0.3, max_tokens=500)
-
-        if not response:
-            return {
-                "impact_score": 0.0,
-                "sentiment": "neutral",
-                "confidence": 0.0,
-                "reasoning": "Analysis failed",
-            }
-
-        try:
-            # Try to parse JSON response
-            result = json.loads(response.content)
-            return result
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse LLM response: {response.content}")
-            return {
-                "impact_score": 0.0,
-                "sentiment": "neutral",
-                "confidence": 0.0,
-                "reasoning": "Failed to parse response",
-            }
-
-    async def generate_trading_signal(
-        self,
-        pair: str,
-        rsi: float,
-        news_summary: str,
-        impact_score: float,
-        historical_avg_impact: float,
-    ) -> Dict[str, Any]:
-        """
-        Generate trading decision based on all available data
-
-        Returns:
-            Trading signal with recommendation
-        """
-        prompt = f"""Generate a trading signal for {pair}.
-
-Technical Analysis:
-- RSI: {rsi}
-
-AI Analysis:
-- Recent News: {news_summary[:200]}...
-- Current Impact Score: {impact_score:.2f}
-- Historical Average Impact: {historical_avg_impact:.2f}
-
-Based on this data, should we BUY, SELL, or HOLD?
-
-Respond in JSON:
-{{
-  "action": "<buy|sell|hold>",
-  "confidence": <float 0.0-1.0>,
-  "reasoning": "<brief explanation>"
-}}"""
-
-        messages = [
-            LLMMessage(
-                role="system",
-                content="You are a crypto trading advisor. Respond only with valid JSON.",
-            ),
-            LLMMessage(role="user", content=prompt),
-        ]
-
-        response = await self.chat_completion(messages, temperature=0.2, max_tokens=300)
-
-        if not response:
-            return {"action": "hold", "confidence": 0.0, "reasoning": "Analysis failed"}
-
-        try:
-            return json.loads(response.content)
-        except json.JSONDecodeError:
-            return {"action": "hold", "confidence": 0.0, "reasoning": "Failed to parse response"}
+    async def close(self):
+        """Cleanup resources"""
+        logger.debug("LLM client closed")

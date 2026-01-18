@@ -1,125 +1,129 @@
 """
-Perplexica News Client
+Perplexica Client - Complete Implementation
 
-Client for querying the Perplexica AI news search service.
+Async client for Perplexica news search API.
 """
 
 import aiohttp
-from typing import Dict, List, Optional, Any
-from pydantic import BaseModel
 import logging
+from typing import List, Dict, Optional
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 
-class NewsResult(BaseModel):
-    """News search result"""
-
-    title: str
-    content: str
-    url: Optional[str] = None
-    published_at: Optional[str] = None
-    relevance_score: float = 0.0
-
-
 class PerplexicaClient:
     """
-    Async client for Perplexica News Search API
+    Async client for Perplexica API.
 
     Usage:
-        client = PerplexicaClient(url="http://localhost:3001")
-        results = await client.search_news("BTC price analysis")
+        client = PerplexicaClient(base_url="http://perplexica-search:3000")
+        results = await client.search("Bitcoin news", focus_mode="news")
     """
 
-    def __init__(self, url: str, api_key: Optional[str] = None):
-        self.url = url.rstrip("/")
-        self.api_key = api_key
-        self.headers = {}
-        if api_key:
-            self.headers["Authorization"] = f"Bearer {api_key}"
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip("/")
+        logger.info(f"Perplexica client initialized: {self.base_url}")
 
-    async def search_news(
-        self,
-        query: str,
-        limit: int = 5,
-        focus: str = "news",  # news, academic, reddit, youtube
-    ) -> List[NewsResult]:
+    async def search(
+        self, query: str, focus_mode: str = "news", time_range: str = "week", limit: int = 10
+    ) -> List[Dict]:
         """
-        Search for news using Perplexica
+        Search for news articles using Perplexica.
 
         Args:
-            query: Search query (e.g., "Bitcoin price movement analysis")
-            limit: Maximum number of results
-            focus: Search focus type
+            query: Search query
+            focus_mode: Focus mode (news, web, academic, etc.)
+            time_range: Time range (day, week, month, year)
+            limit: Maximum results
 
         Returns:
-            List of news results
+            List of articles with title, url, published_at, content
         """
-        search_data = {"query": query, "focus": focus, "limit": limit}
+        url = f"{self.base_url}/api/search"
+
+        # Perplexica requires 'sources' parameter - use default news sources
+        payload = {
+            "query": query,
+            "focusMode": focus_mode,
+            "timeRange": time_range,
+            "limit": limit,
+            "sources": [],  # Empty array - Perplexica will use default sources for focus mode
+        }
 
         try:
+            logger.debug(f"Perplexica search: '{query}' (mode={focus_mode}, range={time_range})")
+
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.url}/api/search",
-                    json=search_data,
-                    headers=self.headers,
-                    timeout=aiohttp.ClientTimeout(total=30),
+                    url, json=payload, timeout=aiohttp.ClientTimeout(total=30)
                 ) as response:
-                    response.raise_for_status()
-                    data = await response.json()
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.error(f"Perplexica API error {response.status}: {error_text}")
+                        return []
 
-                    # Parse response
-                    results = []
-                    for item in data.get("results", [])[:limit]:
-                        results.append(
-                            NewsResult(
-                                title=item.get("title", ""),
-                                content=item.get("content", ""),
-                                url=item.get("url"),
-                                published_at=item.get("published_at"),
-                                relevance_score=item.get("relevance_score", 0.0),
-                            )
+                    result = await response.json()
+
+                    # Parse results - Perplexica returns various formats
+                    articles = []
+
+                    if isinstance(result, dict):
+                        results_data = result.get(
+                            "results", result.get("sources", result.get("articles", []))
                         )
+                    elif isinstance(result, list):
+                        results_data = result
+                    else:
+                        logger.warning(f"Unexpected Perplexica response type: {type(result)}")
+                        results_data = []
 
-                    return results
+                    for item in results_data[:limit]:
+                        try:
+                            article = {
+                                "title": item.get("title", "Untitled"),
+                                "url": item.get("url", item.get("link", "")),
+                                "content": item.get(
+                                    "content", item.get("snippet", item.get("description", ""))
+                                ),
+                                "source": item.get("source", item.get("domain", "Unknown")),
+                                "published_at": self._parse_date(
+                                    item.get(
+                                        "published_at", item.get("publishedTime", item.get("date"))
+                                    )
+                                ),
+                            }
 
+                            if article["url"]:
+                                articles.append(article)
+                        except Exception as e:
+                            logger.warning(f"Failed to parse article: {e}")
+                            continue
+
+                    logger.info(f"Perplexica returned {len(articles)} articles for '{query}'")
+                    return articles
+
+        except aiohttp.ClientError as e:
+            logger.error(f"Perplexica connection error: {e}")
+            return []
         except Exception as e:
-            logger.error(f"Error searching Perplexica: {e}")
+            logger.error(f"Perplexica search failed: {e}", exc_info=True)
             return []
 
-    async def search_crypto_news(self, pair: str, timeframe: str = "24h") -> List[NewsResult]:
-        """
-        Search for crypto-specific news
+    def _parse_date(self, date_value) -> datetime:
+        """Parse date from various formats"""
+        if isinstance(date_value, datetime):
+            return date_value
 
-        Args:
-            pair: Trading pair (e.g., BTC/USDT)
-            timeframe: Time window (e.g., 24h, 7d)
+        if isinstance(date_value, str):
+            for fmt in ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]:
+                try:
+                    return datetime.strptime(date_value.split(".")[0].split("+")[0], fmt)
+                except:
+                    continue
 
-        Returns:
-            List of news results
-        """
-        # Extract base currency
-        base_currency = pair.split("/")[0]
+        return datetime.utcnow()
 
-        query = f"{base_currency} cryptocurrency news price analysis last {timeframe}"
-
-        return await self.search_news(query, limit=5)
-
-    async def summarize_news(self, news_results: List[NewsResult]) -> str:
-        """
-        Create a concise summary of news results
-
-        Args:
-            news_results: List of news results
-
-        Returns:
-            Summary string
-        """
-        if not news_results:
-            return "No recent news found."
-
-        summary_parts = []
-        for i, result in enumerate(news_results[:3], 1):
-            summary_parts.append(f"{i}. {result.title}: {result.content[:150]}...")
-
-        return "\n".join(summary_parts)
+    async def close(self):
+        """Cleanup resources"""
+        logger.debug("Perplexica client closed")

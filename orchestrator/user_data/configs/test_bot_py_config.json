@@ -1,0 +1,45 @@
+{
+  "strategy": "GraphitiHybridStrategy",
+  "exchange": {
+    "name": "kucoin",
+    "key": "k",
+    "secret": "s",
+    "password": "p",
+    "ccxt_config": {},
+    "ccxt_async_config": {},
+    "pair_whitelist": [
+      "ETH/USDT"
+    ],
+    "pair_blacklist": []
+  },
+  "dry_run": true,
+  "stake_currency": "USDT",
+  "stake_amount": 100.0,
+  "tradable_balance_ratio": 0.99,
+  "timeframe": "1h",
+  "order_types": {
+    "entry": "limit",
+    "exit": "limit",
+    "stoploss": "market",
+    "stoploss_on_exchange": false
+  },
+  "strategy_opts": {
+    "rsi_period": 14,
+    "rsi_oversold": 30,
+    "rsi_overbought": 70,
+    "min_impact_score": 0.3,
+    "news_check_interval": 3600
+  },
+  "stoploss": -0.05,
+  "trailing_stop": true,
+  "trailing_stop_positive": 0.01,
+  "trailing_stop_positive_offset": 0.02,
+  "api_server": {
+    "enabled": true,
+    "listen_ip_address": "0.0.0.0",
+    "listen_port": 8080,
+    "username": "freqtrade",
+    "password": "freqtrade"
+  },
+  "verbosity": 3
+}

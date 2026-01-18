@@ -1,0 +1,76 @@
+# SearXNG settings for AI-Trader
+
+use_default_settings: true
+
+general:
+  debug: false
+  instance_name: "AI-Trader Search"
+  enable_metrics: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "en"
+  formats:
+    - html
+    - json
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "ai-trader-secret-key-2026"
+  base_url: false
+  public_instance: false
+  limiter: false
+  image_proxy: false
+
+ui:
+  static_use_hash: true
+  default_locale: "en"
+  query_in_title: true
+  infinite_scroll: true
+  center_alignment: false
+  theme_args:
+    simple_style: dark
+
+# Enable engines for crypto/financial news
+engines:
+  - name: google
+    engine: google
+    shortcut: g
+    disabled: false
+
+  - name: bing
+    engine: bing
+    shortcut: b
+    disabled: false
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+
+  - name: google news
+    engine: google_news
+    shortcut: gn
+    disabled: false
+
+  - name: bing news
+    engine: bing_news
+    shortcut: bn
+    disabled: false
+
+  - name: yahoo news
+    engine: yahoo_news
+    shortcut: yn
+    disabled: false
+
+  - name: reddit
+    engine: reddit
+    shortcut: r
+    disabled: false
+
+  - name: brave
+    engine: brave
+    shortcut: br
+    disabled: false

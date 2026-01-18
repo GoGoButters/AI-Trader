@@ -1,9 +1,24 @@
 version: '3.8'
 
 services:
-  # Perplexica AI News Search
+  # SearXNG - Meta Search Engine for News
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+      - SEARXNG_SECRET=ai-trader-secret-key-2026
+    networks:
+      - ai-trader-network
+    restart: unless-stopped
+
+  # Perplexica AI News Search (uses SearXNG as backend)
   perplexica:
-    image: itzcrazykns/perplexica:latest
+    image: perplexica-local:latest
     container_name: perplexica-search
     ports:
       - "3000:3000"
@@ -17,6 +32,10 @@ services:
       - CHAT_MODEL=openrouter/xiaomi/mimo-v2-flash:free
       - EMBEDDING_MODEL=openai/text-embedding-qwen3-embedding-4b
       - EMBEDDING_API_KEY=sk-XE8pV1z4WTbJBpGQfI5nEg
+      # SearXNG backend configuration
+      - SEARXNG_URL=http://searxng:8080
+    depends_on:
+      - searxng
     networks:
       - ai-trader-network
     restart: unless-stopped
@@ -24,18 +43,20 @@ services:
   # Orchestrator Backend (FastAPI)
   orchestrator:
     build:
-      context: ./orchestrator/backend
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: orchestrator/backend/Dockerfile
     container_name: orchestrator-api
     ports:
       - "8080:8080"
     volumes:
-      - ./:/app
+      # Removed ./:/app to prevent overriding image contents
       - /var/run/docker.sock:/var/run/docker.sock # For Docker-in-Docker
-      - ./orchestrator/data:/app/orchestrator/data
+      - ./data:/app/data # Only mount data directory
       - ./user_data:/app/user_data
+      - ./backend:/app/backend # Mount code for development
     environment:
       - PYTHONUNBUFFERED=1
+      - HOST_PROJECT_PATH=c:/Nextcloud/Work/experiments/ai/AI-Trader-develop/orchestrator
     depends_on:
       - perplexica
     networks:
@@ -45,7 +66,7 @@ services:
   # Frontend (Simple WebUI)
   frontend:
     build:
-      context: ./orchestrator/ui
+      context: ./ui
       dockerfile: Dockerfile
     container_name: orchestrator-ui
     ports:

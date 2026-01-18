@@ -6,11 +6,34 @@ SQLAlchemy models for bot instances and parameters.
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, JSON
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Float,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    JSON,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
 Base = declarative_base()
+
+# Import paper trading models to register with Base
+# This must be after Base declaration but before any usage
+try:
+    from .paper_trading_models import (  # noqa: F401
+        PaperBalance,
+        PaperPosition,
+        PaperOrder,
+        PaperTrade,
+        PaperMetrics,
+    )
+except ImportError:
+    # Models not yet created, will be imported later
+    pass
 
 
 class BotInstance(Base):
@@ -24,6 +47,8 @@ class BotInstance(Base):
     timeframe = Column(String(10), nullable=False)  # e.g., 15m, 1h, 4h
     status = Column(String(20), default="stopped")  # stopped, running, error
     mode = Column(String(10), default="demo")  # demo or real
+    trading_mode = Column(String(10), default="spot")  # spot, margin, futures
+    leverage = Column(Integer, default=1)  # 1-125x
 
     # Docker/Process info
     container_id = Column(String(100), nullable=True)
@@ -42,11 +67,27 @@ class BotInstance(Base):
     params = relationship(
         "BotParams", back_populates="bot", uselist=False, cascade="all, delete-orphan"
     )
+    paper_balances = relationship(
+        "PaperBalance", back_populates="bot", cascade="all, delete-orphan"
+    )
+    paper_positions = relationship(
+        "PaperPosition", back_populates="bot", cascade="all, delete-orphan"
+    )
+    paper_orders = relationship(
+        "PaperOrder", back_populates="bot", cascade="all, delete-orphan"
+    )
+    paper_trades = relationship(
+        "PaperTrade", back_populates="bot", cascade="all, delete-orphan"
+    )
+    paper_metrics = relationship(
+        "PaperMetrics",
+        back_populates="bot",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self):
-        return (
-            f"<BotInstance(id={self.id}, name={self.name}, pair={self.pair}, status={self.status})>"
-        )
+        return f"<BotInstance(id={self.id}, name={self.name}, pair={self.pair}, status={self.status})>"
 
 
 class BotParams(Base):
@@ -69,6 +110,7 @@ class BotParams(Base):
 
     # AI Strategy Parameters
     enable_ai_analysis = Column(Boolean, default=True)
+    macd_enabled = Column(Boolean, default=True)  # Use MACD confirmation for signals
     news_check_interval = Column(Integer, default=3600)  # seconds
     min_impact_score = Column(Float, default=0.3)  # minimum impact score to trade
 

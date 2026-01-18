@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI-Trader Orchestrator</title>
+    <!-- Lightweight Charts v3.8 -->
+    <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         * {
             margin: 0;
@@ -45,7 +48,8 @@
 
         .grid {
             display: grid;
-            grid-template-columns: 1fr 2fr;
+            grid-template-columns: 1fr 2fr 1fr;
+            /* Added 3rd column for news */
             gap: 20px;
             margin-bottom: 20px;
         }
@@ -75,7 +79,8 @@
             margin-bottom: 8px;
         }
 
-        input, select {
+        input,
+        select {
             width: 100%;
             padding: 12px;
             border: 2px solid #e2e8f0;
@@ -84,7 +89,8 @@
             transition: all 0.3s;
         }
 
-        input:focus, select:focus {
+        input:focus,
+        select:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -129,8 +135,12 @@
             background: white;
             border-radius: 12px;
             padding: 20px;
-            border-left: 4px solid#667eea;
+            border-left: 4px solid #667eea;
             transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 20px;
+            /* Add spacing between cards */
+            overflow: visible;
+            /* Ensure charts don't get clipped */
         }
 
         .bot-item:hover {
@@ -166,6 +176,12 @@
         .status-stopped {
             background: #cbd5e0;
             color: #4a5568;
+        }
+
+        .status-error {
+            background: #fc8181;
+            color: white;
+            font-weight: 700;
         }
 
         .bot-info {
@@ -247,7 +263,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .spinner {
@@ -259,8 +277,229 @@
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
         }
+
+        /* News Panel Styles */
+        .news-list {
+            max-height: 700px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .news-item {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s;
+        }
+
+        .news-item:hover {
+            transform: translateX(3px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .news-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .news-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8em;
+            color: #718096;
+            margin-bottom: 8px;
+            gap: 8px;
+        }
+
+        .news-source {
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .impact-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.75em;
+            white-space: nowrap;
+        }
+
+        .impact-positive {
+            background: #48bb78;
+            color: white;
+        }
+
+        .impact-negative {
+            background: #f56565;
+            color: white;
+        }
+
+        .impact-neutral {
+            background: #e2e8f0;
+        }
+
+        /* Chart Container Styles */
+        .bot-chart-container {
+            width: 100%;
+            min-height: 520px;
+            /* Fixed min-height to prevent collapse */
+            margin-top: 15px;
+            margin-bottom: 20px;
+            /* Space after chart */
+            background: #f7fafc;
+            border-radius: 8px;
+            position: relative;
+            clear: both;
+            /* Clear any floats */
+        }
+
+        .chart-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .news-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+
+        .news-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Logs Panel Styles */
+        .logs-section {
+            margin-top: 20px;
+        }
+
+        .logs-container {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+        }
+
+        .log-entry {
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-bottom: 3px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .log-time {
+            color: #718096;
+            min-width: 80px;
+        }
+
+        .log-level {
+            min-width: 60px;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: 3px;
+        }
+
+        .log-level-DEBUG {
+            background: #4a5568;
+            color: #e2e8f0;
+        }
+
+        .log-level-INFO {
+            background: #3182ce;
+            color: white;
+        }
+
+        .log-level-WARNING {
+            background: #d69e2e;
+            color: #1a202c;
+        }
+
+        .log-level-ERROR {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .log-level-CRITICAL {
+            background: #9b2c2c;
+            color: white;
+        }
+
+        .log-module {
+            color: #9f7aea;
+            min-width: 150px;
+        }
+
+        .log-message {
+            color: #e2e8f0;
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .logs-filter {
+            display: flex;
+            gap: 10px;
+        }
+
+        .logs-filter select {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            font-size: 0.9em;
+        }
+
+        .logs-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85em;
+            color: #718096;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -302,6 +541,45 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="tradingMode">Тип торговли</label>
+                        <select id="tradingMode" onchange="updateLeverageLimit()">
+                            <option value="spot">Spot (без плеча)</option>
+                            <option value="margin">Margin (до 10x)</option>
+                            <option value="futures">Futures (до 125x)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="leverage">Плечо (Leverage)</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="leverage" min="1" max="1" value="1" style="flex: 1;">
+                            <span id="leverageInfo" style="font-size: 0.9em; color: #888;">1x (Spot - без плеча)</span>
+                        </div>
+                    </div>
+
+                    <!-- KuCoin API Credentials -->
+                    <div class="form-group">
+                        <label for="apiKey">KuCoin API Key</label>
+                        <input type="text" id="apiKey" placeholder="Ваш API Key" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="apiSecret">KuCoin API Secret</label>
+                        <input type="password" id="apiSecret" placeholder="Ваш API Secret" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="apiPassphrase">KuCoin API Passphrase</label>
+                        <input type="password" id="apiPassphrase" placeholder="Ваша API Passphrase" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="stakeAmount">Баланс на сделку (USDT)</label>
+                        <input type="number" id="stakeAmount" value="100" min="1" step="0.01" placeholder="100.00"
+                            required>
+                    </div>
+
+                    <div class="form-group">
                         <label for="rsi_oversold">RSI Oversold</label>
                         <input type="number" id="rsi_oversold" value="30" min="0" max="100">
                     </div>
@@ -309,6 +587,16 @@
                     <div class="form-group">
                         <label for="rsi_overbought">RSI Overbought</label>
                         <input type="number" id="rsi_overbought" value="70" min="0" max="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="macd_enabled" checked style="width: auto; margin: 0;">
+                            Использовать MACD подтверждение
+                        </label>
+                        <small style="color: #718096; font-size: 0.85em;">
+                            Включает подтверждение сигналов RSI индикатором MACD
+                        </small>
                     </div>
 
                     <div class="form-group">
@@ -335,16 +623,171 @@
                     </div>
                 </div>
             </div>
+
+            <!-- News Analysis Panel -->
+            <div class="card">
+                <h2>📰 Анализ Новостей</h2>
+                <div id="newsList" class="news-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Загрузка новостей...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-Time Logs Panel -->
+        <div class="logs-section card">
+            <div class="logs-header">
+                <h2>📋 Системные Логи</h2>
+                <div class="logs-filter">
+                    <select id="logLevelFilter" onchange="filterLogs()">
+                        <option value="all">Все уровни</option>
+                        <option value="DEBUG">DEBUG</option>
+                        <option value="INFO">INFO</option>
+                        <option value="WARNING">WARNING</option>
+                        <option value="ERROR">ERROR</option>
+                    </select>
+                    <select id="logModuleFilter" onchange="filterLogs()">
+                        <option value="all">Все модули</option>
+                        <option value="news">Новости</option>
+                        <option value="paper_trading">Торговля</option>
+                        <option value="history">История</option>
+                        <option value="bots">Боты</option>
+                    </select>
+                </div>
+                <div class="logs-status">
+                    <span class="status-dot" id="logsStatusDot"></span>
+                    <span id="logsStatusText">Подключение...</span>
+                </div>
+            </div>
+            <div class="logs-container" id="logsContainer">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Загрузка логов...
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         const API_BASE = 'http://localhost:8080/api';
 
-        // Load bots on page load
+        // Update leverage limit based on trading mode
+        function updateLeverageLimit() {
+            const tradingMode = document.getElementById('tradingMode').value;
+            const leverageInput = document.getElementById('leverage');
+            const leverageInfo = document.getElementById('leverageInfo');
+
+            if (tradingMode === 'spot') {
+                leverageInput.max = 1;
+                leverageInput.value = 1;
+                leverageInfo.textContent = '1x (Spot - без плеча)';
+            } else if (tradingMode === 'margin') {
+                leverageInput.max = 10;
+                leverageInfo.textContent = `до 10x (Margin)`;
+            } else if (tradingMode === 'futures') {
+                leverageInput.max = 125;
+                leverageInfo.textContent = `до 125x (Futures - высокий риск!)`;
+            }
+        }
+
+        // Helper: Calculate RSI
+        function calculateRSI(closes, period = 14) {
+            const rsi = new Array(closes.length).fill(null);
+            let avgGain = 0;
+            let avgLoss = 0;
+
+            for (let i = 1; i < closes.length; i++) {
+                const change = closes[i] - closes[i - 1];
+                const gain = change > 0 ? change : 0;
+                const loss = change < 0 ? -change : 0;
+
+                if (i < period + 1) {
+                    avgGain += gain;
+                    avgLoss += loss;
+                } else if (i === period + 1) {
+                    avgGain /= period;
+                    avgLoss /= period;
+                    const rs = avgGain / avgLoss;
+                    rsi[i] = 100 - (100 / (1 + rs));
+                } else {
+                    avgGain = (avgGain * (period - 1) + gain) / period;
+                    avgLoss = (avgLoss * (period - 1) + loss) / period;
+
+                    if (avgLoss === 0) {
+                        rsi[i] = 100;
+                    } else {
+                        const rs = avgGain / avgLoss;
+                        rsi[i] = 100 - (100 / (1 + rs));
+                    }
+                }
+            }
+            return rsi;
+        }
+
+        // Helper: Calculate EMA
+        function calculateEMA(data, period) {
+            const k = 2 / (period + 1);
+            const ema = new Array(data.length).fill(null);
+
+            // Simple SMA for first value
+            let sum = 0;
+            for (let i = 0; i < period; i++) {
+                sum += data[i];
+            }
+            if (data.length >= period) {
+                ema[period - 1] = sum / period;
+                for (let i = period; i < data.length; i++) {
+                    ema[i] = data[i] * k + ema[i - 1] * (1 - k);
+                }
+            }
+            return ema;
+        }
+
+        // Helper: Calculate MACD
+        function calculateMACD(closes, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+            const emaFast = calculateEMA(closes, fastPeriod);
+            const emaSlow = calculateEMA(closes, slowPeriod);
+
+            const macdLine = new Array(closes.length).fill(null);
+            for (let i = 0; i < closes.length; i++) {
+                if (emaFast[i] !== null && emaSlow[i] !== null) {
+                    macdLine[i] = emaFast[i] - emaSlow[i];
+                }
+            }
+
+            // Signal line is EMA of MACD line
+            // Filter nulls first? No, keep indices aligned
+            // We need to calculate EMA of the valid macdLine part
+            // Simplified: Just shift calculation
+            const macdValid = macdLine.filter(x => x !== null);
+            const signalValid = calculateEMA(macdValid, signalPeriod);
+
+            const signalLine = new Array(closes.length).fill(null);
+            const offset = closes.length - macdValid.length;
+
+            for (let i = 0; i < signalValid.length; i++) {
+                signalLine[i + offset] = signalValid[i];
+            }
+
+            const histogram = new Array(closes.length).fill(null);
+            for (let i = 0; i < closes.length; i++) {
+                if (macdLine[i] !== null && signalLine[i] !== null) {
+                    histogram[i] = macdLine[i] - signalLine[i];
+                }
+            }
+
+            return { macd: macdLine, signal: signalLine, histogram: histogram };
+        }
+        // Load bots and news on page load
         document.addEventListener('DOMContentLoaded', () => {
             loadBots();
-            setInterval(loadBots, 5000); // Refresh every 5 seconds
+            loadNews();
+            loadLogs();
+            setInterval(loadBots, 5000); // Refresh bots every 5 seconds
+            setInterval(loadNews, 60000); // Refresh news every minute
+            setInterval(loadLogs, 3000); // Refresh logs every 3 seconds
         });
 
         // Create bot form submission
@@ -356,16 +799,24 @@
                 pair: document.getElementById('pair').value,
                 timeframe: document.getElementById('timeframe').value,
                 mode: document.getElementById('mode').value,
+                trading_mode: document.getElementById('tradingMode').value,
+                leverage: parseInt(document.getElementById('leverage').value),
                 params: {
                     rsi_period: 14,
                     rsi_oversold: parseInt(document.getElementById('rsi_oversold').value),
                     rsi_overbought: parseInt(document.getElementById('rsi_overbought').value),
                     stop_loss: -0.05,
                     take_profit: 0.10,
-                    max_position_size: 100.0,
+                    max_position_size: parseFloat(document.getElementById('stakeAmount').value),
                     enable_ai_analysis: true,
+                    macd_enabled: document.getElementById('macd_enabled').checked,
                     news_check_interval: 3600,
-                    min_impact_score: parseFloat(document.getElementById('min_impact_score').value)
+                    min_impact_score: parseFloat(document.getElementById('min_impact_score').value),
+                    exchange_config: {
+                        api_key: document.getElementById('apiKey').value,
+                        api_secret: document.getElementById('apiSecret').value,
+                        api_passphrase: document.getElementById('apiPassphrase').value
+                    }
                 }
             };
 
@@ -437,16 +888,24 @@
                             </div>
                         </div>
                         <div class="bot-actions">
-                            ${bot.status === 'stopped' ? 
-                                `<button class="bot-btn btn-start" onclick="startBot(${bot.id})">▶ Запустить</button>` :
-                                `<button class="bot-btn btn-stop" onclick="stopBot(${bot.id})">⏸ Остановить</button>`
-                            }
+                            ${bot.status === 'stopped' ?
+                        `<button class="bot-btn btn-start" onclick="startBot(${bot.id})">▶ Запустить</button>` :
+                        `<button class="bot-btn btn-stop" onclick="stopBot(${bot.id})">⏸ Остановить</button>`
+                    }
                             <button class="bot-btn btn-delete" onclick="deleteBot(${bot.id}, '${bot.name}')">🗑 Удалить</button>
+                        </div>
+                        <div class="bot-chart-container" id="chart-${bot.id}">
+                            <div class="chart-loading">📊 Загрузка графика...</div>
                         </div>
                     </div>
                 `).join('');
+
+                // Render charts for all bots
+                bots.forEach(bot => {
+                    renderBotChart(bot.id, bot.pair, bot.timeframe);
+                });
             } catch (error) {
-                document.getElementById('botList').innerHTML = 
+                document.getElementById('botList').innerHTML =
                     `<p class="loading">Ошибка загрузки: ${error.message}<br>Проверьте, что API сервер запущен на http://localhost:8080</p>`;
             }
         }
@@ -497,6 +956,316 @@
                 alert(`Ошибка: ${error.message}`);
             }
         }
+
+        // Global chart storage
+        const botCharts = {};
+
+        // Helper: Calculate MACD indicator
+        function calculateMACD(candles, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+            const closes = candles.map(c => c.close);
+
+            // Calculate EMA
+            const ema = (data, period) => {
+                const k = 2 / (period + 1);
+                let emaData = [data[0]];
+                for (let i = 1; i < data.length; i++) {
+                    emaData.push(data[i] * k + emaData[i - 1] * (1 - k));
+                }
+                return emaData;
+            };
+
+            const ema12 = ema(closes, fastPeriod);
+            const ema26 = ema(closes, slowPeriod);
+
+            // MACD Line = EMA12 - EMA26
+            const macdLine = ema12.map((val, i) => val - ema26[i]);
+
+            // Signal Line = EMA9 of MACD
+            const signalLine = ema(macdLine, signalPeriod);
+
+            // Histogram = MACD - Signal
+            const histogram = macdLine.map((val, i) => val - signalLine[i]);
+
+            // Format for chart
+            return {
+                macd: candles.map((c, i) => ({ time: c.time, value: macdLine[i] })),
+                signal: candles.map((c, i) => ({ time: c.time, value: signalLine[i] })),
+                histogram: candles.map((c, i) => ({
+                    time: c.time,
+                    value: histogram[i],
+                    color: histogram[i] >= 0 ? '#26a69a' : '#ef5350'
+                }))
+            };
+        }
+
+        // Render chart for a bot
+        async function renderBotChart(botId, pair, timeframe) {
+            const container = document.getElementById(`chart-${botId}`);
+            if (!container) return;
+
+            try {
+                // Fetch candles - 1000 candles for good history
+                const candlesRes = await fetch(`${API_BASE}/bots/${botId}/candles?limit=1000`);
+                if (!candlesRes.ok) throw new Error('Failed to fetch candles');
+
+                const candlesData = await candlesRes.json();
+
+                // Backend returns RAW ARRAY, not {data: [...]}
+                const rawCandles = Array.isArray(candlesData) ? candlesData : (candlesData.data || []);
+
+                if (!rawCandles || rawCandles.length === 0) {
+                    container.innerHTML = '<div class="chart-loading">⚠️ Нет данных свечей</div>';
+                    return;
+                }
+
+                console.log(`✅ Loaded ${rawCandles.length} candles for bot ${botId}`);
+
+                // Prepare candle data with correct timestamp formatting
+                const chartData = rawCandles.map((c, i) => {
+                    const timestamp = Math.floor(parseFloat(c[0]) / 1000); // Convert ms to seconds
+                    return {
+                        time: timestamp,
+                        open: parseFloat(c[1]),
+                        high: parseFloat(c[2]),
+                        low: parseFloat(c[3]),
+                        close: parseFloat(c[4]),
+                        volume: parseFloat(c[5])
+                    };
+                });
+
+                // Calculate Indicators AFTER mapping
+                const closes = chartData.map(c => c.close);
+                const rsiValues = calculateRSI(closes, 7); // RSI-7 as requested
+
+                // Calculate MACD using chartData (already has time/close)
+                const macdValues = calculateMACD(chartData, 12, 26, 9);
+
+                // Add indicator values to chartData
+                chartData.forEach((candle, i) => {
+                    candle.rsi = rsiValues[i];
+                });
+
+                // Clear container
+                container.innerHTML = '';
+
+                // 1. Price Chart (Top, 60% height)
+                const chart = LightweightCharts.createChart(container, {
+                    width: container.clientWidth,
+                    height: 500,
+                    layout: { background: { color: '#ffffff' }, textColor: '#333' },
+                    grid: { vertLines: { color: '#f0f0f0' }, horzLines: { color: '#f0f0f0' } },
+                    timeScale: { timeVisible: true, secondsVisible: false },
+                    rightPriceScale: { scaleMargins: { top: 0.05, bottom: 0.4 } } // Bottom reserved for indicators
+                });
+
+                const candleSeries = chart.addCandlestickSeries({
+                    upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
+                    wickUpColor: '#26a69a', wickDownColor: '#ef5350',
+                });
+                candleSeries.setData(chartData);
+
+                // 2. Volume (Bottom of Price Chart)
+                const volumeSeries = chart.addHistogramSeries({
+                    priceFormat: { type: 'volume' },
+                    priceScaleId: '',
+                    scaleMargins: { top: 0.7, bottom: 0.3 }, // Overlay at bottom of price
+                });
+                volumeSeries.setData(chartData.map(c => ({
+                    time: c.time, value: c.volume,
+                    color: c.close >= c.open ? '#26a69a80' : '#ef535080'
+                })));
+
+                // 3. RSI-7 as overlay on main chart
+                const rsiSeries = chart.addLineSeries({
+                    color: '#2962FF',
+                    lineWidth: 2,
+                    priceScaleId: 'rsi',
+                    title: 'RSI-7',
+                });
+
+                chart.priceScale('rsi').applyOptions({
+                    scaleMargins: {
+                        top: 0.8,  // RSI at bottom 20%
+                        bottom: 0,
+                    },
+                });
+
+                rsiSeries.setData(chartData.map((c, i) => ({
+                    time: c.time,
+                    value: c.rsi
+                })));
+
+                // 4. Fetch trades and add markers
+                try {
+                    const tradesRes = await fetch(`${API_BASE}/bots/${botId}/trades?limit=50`);
+                    if (tradesRes.ok) {
+                        const tradesData = await tradesRes.json();
+
+                        // Handle both {trades: [...]} and raw array formats
+                        const trades = Array.isArray(tradesData) ? tradesData : (tradesData.trades || []);
+
+                        if (trades.length > 0) {
+                            const markers = trades.map(trade => ({
+                                time: Math.floor(new Date(trade.datetime || trade.timestamp).getTime() / 1000),
+                                position: trade.side === 'buy' ? 'belowBar' : 'aboveBar',
+                                color: trade.side === 'buy' ? '#26a69a' : '#ef5350',
+                                shape: 'circle',
+                                text: trade.side === 'buy' ? '↑' : '↓',
+                            }));
+
+                            candleSeries.setMarkers(markers);
+                            console.log(`✅ Added ${markers.length} trade markers`);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Failed to load trade markers:', error);
+                }
+
+                // Store chart reference
+                botCharts[botId] = chart;
+
+                // Auto-resize
+                window.addEventListener('resize', () => {
+                    chart.resize(container.clientWidth, 500);
+                });
+
+                console.log(`✅ Chart rendered for bot ${botId}`);
+
+            } catch (error) {
+                console.error(`Chart error for bot ${botId}:`, error);
+                container.innerHTML = `<div class="chart-loading">❌ Ошибка загрузки графика: ${error.message}</div>`;
+            }
+        }
+
+        // Load news
+        async function loadNews() {
+            try {
+                // Determine active pair from first bot if available, or default to BTC/USDT
+                // ideally we would show news relevant to all active bots or have a selector
+                const pair = 'BTC/USDT';
+
+                const response = await fetch(`${API_BASE}/news/list?limit=10`);
+                if (!response.ok) throw new Error('Failed to fetch news');
+
+                const news = await response.json();
+                const newsList = document.getElementById('newsList');
+
+                if (news.length === 0) {
+                    newsList.innerHTML = '<p class="loading">Нет данных о новостях</p>';
+                    return;
+                }
+
+                newsList.innerHTML = news.map(item => {
+                    const impactClass = item.impact_score > 0.3 ? 'positive' :
+                        item.impact_score < -0.3 ? 'negative' : 'neutral';
+
+                    const date = new Date(item.created_at).toLocaleString('ru-RU', {
+                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                    });
+
+                    return `
+                        <div class="news-item">
+                            <div class="news-title">${item.title}</div>
+                            <div class="news-meta">
+                                <span>${item.pair}</span>
+                                <span class="impact-badge impact-${impactClass}">
+                                    Score: ${item.impact_score.toFixed(2)}
+                                </span>
+                            </div>
+                            <div class="news-meta">
+                                <span>📊 ${item.news_category || 'General'}</span>
+                                <span>🕒 ${date}</span>
+                            </div>
+                            <div class="news-meta">
+                                <span class="news-source">🔗 ${item.source_name || 'Source'}</span>
+                                ${item.source_url ? `<a href="${item.source_url}" target="_blank" class="news-link">Читать далее</a>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading news:', error);
+                document.getElementById('newsList').innerHTML =
+                    `<p class="loading">Ошибка загрузки новостей<br><small>${error.message}</small></p>`;
+            }
+        }
+
+        // === LOGS SECTION ===
+        let allLogs = [];
+
+        async function loadLogs() {
+            try {
+                const response = await fetch(`${API_BASE}/logs/recent?limit=100`);
+                if (response.ok) {
+                    const data = await response.json();
+                    allLogs = data.logs || [];
+
+                    // Update status
+                    document.getElementById('logsStatusDot').style.background = '#48bb78';
+                    document.getElementById('logsStatusText').textContent = `Подключено (${allLogs.length} записей)`;
+
+                    filterLogs();
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Error loading logs:', error);
+                document.getElementById('logsStatusDot').style.background = '#e53e3e';
+                document.getElementById('logsStatusText').textContent = 'Ошибка подключения';
+                document.getElementById('logsContainer').innerHTML =
+                    `<p style="color: #fc8181; padding: 20px;">Ошибка загрузки логов: ${error.message}</p>`;
+            }
+        }
+
+        function filterLogs() {
+            const levelFilter = document.getElementById('logLevelFilter').value;
+            const moduleFilter = document.getElementById('logModuleFilter').value;
+
+            let filtered = allLogs;
+
+            if (levelFilter !== 'all') {
+                filtered = filtered.filter(log => log.level === levelFilter);
+            }
+
+            if (moduleFilter !== 'all') {
+                filtered = filtered.filter(log =>
+                    log.module && log.module.toLowerCase().includes(moduleFilter)
+                );
+            }
+
+            renderLogs(filtered);
+        }
+
+        function renderLogs(logs) {
+            const container = document.getElementById('logsContainer');
+
+            if (logs.length === 0) {
+                container.innerHTML = `<p style="color: #718096; padding: 20px;">Нет записей для отображения</p>`;
+                return;
+            }
+
+            container.innerHTML = logs.slice(-100).reverse().map(log => {
+                const time = log.timestamp ? new Date(log.timestamp * 1000).toLocaleTimeString('ru-RU') : '';
+                return `
+                    <div class="log-entry">
+                        <span class="log-time">${time}</span>
+                        <span class="log-level log-level-${log.level}">${log.level}</span>
+                        <span class="log-module">${log.module || 'unknown'}</span>
+                        <span class="log-message">${escapeHtml(log.message || '')}</span>
+                    </div>
+                `;
+            }).join('');
+
+            // Auto-scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
     </script>
 </body>
+
 </html>

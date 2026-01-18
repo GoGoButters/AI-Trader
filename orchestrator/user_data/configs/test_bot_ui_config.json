@@ -1,0 +1,67 @@
+{
+  "strategy": "GraphitiHybridStrategy",
+  "exchange": {
+    "name": "kucoin",
+    "key": "k",
+    "secret": "s",
+    "password": "p",
+    "ccxt_config": {},
+    "ccxt_async_config": {},
+    "pair_whitelist": [
+      "BTC/USDT"
+    ],
+    "pair_blacklist": []
+  },
+  "pairlists": [
+    {
+      "method": "StaticPairList"
+    }
+  ],
+  "entry_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1,
+    "price_last_balance": 0.0,
+    "check_depth_of_market": {
+      "enabled": false,
+      "bids_to_ask_delta": 1
+    }
+  },
+  "exit_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "dry_run": true,
+  "stake_currency": "USDT",
+  "stake_amount": 100.0,
+  "tradable_balance_ratio": 0.99,
+  "timeframe": "1h",
+  "order_types": {
+    "entry": "limit",
+    "exit": "limit",
+    "stoploss": "market",
+    "stoploss_on_exchange": false
+  },
+  "strategy_opts": {
+    "rsi_period": 14,
+    "rsi_oversold": 30,
+    "rsi_overbought": 70,
+    "min_impact_score": 0.3,
+    "news_check_interval": 3600
+  },
+  "stoploss": -0.05,
+  "trailing_stop": true,
+  "trailing_stop_positive": 0.01,
+  "trailing_stop_positive_offset": 0.02,
+  "api_server": {
+    "enabled": true,
+    "listen_ip_address": "0.0.0.0",
+    "listen_port": 8082,
+    "username": "freqtrade",
+    "password": "freqtrade",
+    "enable_openapi": true,
+    "jwt_secret_key": "supersecretjwtkey"
+  },
+  "verbosity": 3
+}

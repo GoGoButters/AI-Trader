@@ -5,8 +5,14 @@ services:
   # Graphiti Memory Service (WORKING)
   graphiti: "url: http://192.168.1.107:8001; token: adapter-secret-api-key"
   
-  # Perplexica News Search Service (will be deployed via docker-compose)
-  perplexica: "url: http://localhost:3000; api_key: dummy"
+  # Perplexica News Search Service (deployed via docker-compose)
+  perplexica: "url: http://perplexica-search:3000; api_key: dummy"
+  
+  # Reranker Service for improved search results
+  reranker: "url: http://192.168.1.151:8080/rerank; api_key: dummy"
+  
+  # SearXNG News Search Service (local or external)
+  searxng: "url: http://searxng:8080"
 
 # AI Models Configuration (WORKING MODELS FROM GRAPHITI)
 # Format: "model: [NAME]; api_base: [URL]; api_key: [KEY]"
@@ -25,8 +31,8 @@ models:
 
 # Database Configuration
 database:
-  type: "sqlite"  # sqlite or postgresql
-  path: "orchestrator/data/orchestrator.db"  # for SQLite
+  type: sqlite
+  path: /app/data/orchestrator.db  # SQLite database path (mounted volume)
   # For PostgreSQL, uncomment and configure:
   # host: "localhost"
   # port: 5432
@@ -36,13 +42,34 @@ database:
 
 # Orchestrator Settings
 orchestrator:
-  # Web UI settings
+  # Network ports
   ui_port: 3000
   api_port: 8080
   
+  # CORS configuration (comma-separated origins, * = allow all)
+  cors_origins: "*"
+  
   # Bot management
   max_concurrent_bots: 10
-  default_bot_image: "freqtrade/freqtrade:stable"
+  default_bot_image: "freqtradeorg/freqtrade:stable"
   
   # Auto-restart on server reboot
-  auto_restart: true
+  auto_restart_bots: true
+  
+  # News analysis settings
+  enable_news_analysis: true
+  news_check_interval_minutes: 15  # How often to check for new news
+  news_hard_influence_enabled: false  # Enable force buy/sell on critical news
+  
+  # Paper trading defaults
+  paper_trading_initial_balance: 1000.0
+  paper_trading_slippage_min: 0.0005  # 0.05%
+  paper_trading_slippage_max: 0.001   # 0.1%
+  paper_trading_fee_rate: 0.001       # 0.1% taker fee
+
+# Log settings
+logging:
+  level: DEBUG  # DEBUG, INFO, WARNING, ERROR
+  file_rotation_mb: 10
+  file_backup_count: 5
+

@@ -47,7 +47,14 @@ class Database:
             raise ValueError(f"Unsupported database type: {db_config.type}")
 
         # Create session factory
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self.SessionLocal = sessionmaker(
+            autocommit=False, autoflush=False, bind=self.engine
+        )
+
+        # Import all models to register them with SQLAlchemy before creating tables
+        # This ensures all relationships are properly resolved
+        from . import paper_trading_models  # noqa: F401
+        from . import news_models  # noqa: F401
 
         # Create all tables
         Base.metadata.create_all(bind=self.engine)
