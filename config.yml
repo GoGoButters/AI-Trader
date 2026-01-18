@@ -72,4 +72,3 @@ logging:
   level: DEBUG  # DEBUG, INFO, WARNING, ERROR
   file_rotation_mb: 10
   file_backup_count: 5
-

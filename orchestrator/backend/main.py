@@ -180,6 +180,11 @@ from .api import logs
 
 app.include_router(logs.router)
 
+# Add keys router for API keys management
+from .api import keys
+
+app.include_router(keys.router)
+
 
 @app.get("/")
 async def root():

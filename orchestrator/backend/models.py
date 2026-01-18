@@ -152,3 +152,25 @@ class TradingSignal(Base):
 
     def __repr__(self):
         return f"<TradingSignal(id={self.id}, pair={self.pair}, action={self.action}, impact_score={self.impact_score})>"
+
+
+class APIKey(Base):
+    """Stored API keys for exchanges"""
+
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), unique=True, nullable=False)  # User-friendly name
+    exchange = Column(String(50), default="kucoin")  # Exchange name
+
+    # KuCoin credentials (should be encrypted in production)
+    api_key = Column(String(200), nullable=False)
+    api_secret = Column(String(200), nullable=False)
+    api_passphrase = Column(String(200), nullable=True)  # KuCoin specific
+
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+
+    def __repr__(self):
+        return f"<APIKey(id={self.id}, name={self.name}, exchange={self.exchange})>"
