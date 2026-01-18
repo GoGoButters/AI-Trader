@@ -559,6 +559,22 @@
 
                     <!-- KuCoin API Credentials -->
                     <div class="form-group">
+                        <label for="savedApiKey">Сохранённые API ключи</label>
+                        <div style="display: flex; gap: 10px;">
+                            <select id="savedApiKey" style="flex: 1;" onchange="loadSavedKey()">
+                                <option value="">-- Выберите или введите новый --</option>
+                            </select>
+                            <button type="button" class="btn" style="padding: 8px 16px; font-size: 0.9em;"
+                                onclick="saveNewKey()">💾 Сохранить</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="apiKeyName">Название ключа (для сохранения)</label>
+                        <input type="text" id="apiKeyName" placeholder="Мой основной ключ">
+                    </div>
+
+                    <div class="form-group">
                         <label for="apiKey">KuCoin API Key</label>
                         <input type="text" id="apiKey" placeholder="Ваш API Key" required>
                     </div>
@@ -692,6 +708,88 @@
             }
         }
 
+        // Load saved API keys from database
+        async function loadApiKeys() {
+            try {
+                const response = await fetch(`${API_BASE}/keys/list`);
+                if (response.ok) {
+                    const keys = await response.json();
+                    const select = document.getElementById('savedApiKey');
+                    select.innerHTML = '<option value="">-- Выберите или введите новый --</option>';
+                    keys.forEach(key => {
+                        const option = document.createElement('option');
+                        option.value = key.id;
+                        option.textContent = `${key.name} (${key.exchange})`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (e) {
+                console.log('Could not load API keys:', e);
+            }
+        }
+
+        // Load selected API key into form fields
+        async function loadSavedKey() {
+            const keyId = document.getElementById('savedApiKey').value;
+            if (!keyId) {
+                document.getElementById('apiKey').value = '';
+                document.getElementById('apiSecret').value = '';
+                document.getElementById('apiPassphrase').value = '';
+                document.getElementById('apiKeyName').value = '';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/keys/${keyId}/full`);
+                if (response.ok) {
+                    const key = await response.json();
+                    document.getElementById('apiKey').value = key.api_key;
+                    document.getElementById('apiSecret').value = key.api_secret;
+                    document.getElementById('apiPassphrase').value = key.api_passphrase || '';
+                    document.getElementById('apiKeyName').value = key.name;
+                }
+            } catch (e) {
+                alert('Ошибка загрузки ключа: ' + e.message);
+            }
+        }
+
+        // Save new API key to database
+        async function saveNewKey() {
+            const name = document.getElementById('apiKeyName').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const apiSecret = document.getElementById('apiSecret').value;
+            const apiPassphrase = document.getElementById('apiPassphrase').value;
+
+            if (!name || !apiKey || !apiSecret) {
+                alert('Заполните название, API Key и API Secret');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/keys/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        exchange: 'kucoin',
+                        api_key: apiKey,
+                        api_secret: apiSecret,
+                        api_passphrase: apiPassphrase || null
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Ключ сохранён!');
+                    loadApiKeys();
+                } else {
+                    const error = await response.json();
+                    alert('Ошибка: ' + error.detail);
+                }
+            } catch (e) {
+                alert('Ошибка сохранения: ' + e.message);
+            }
+        }
+
         // Helper: Calculate RSI
         function calculateRSI(closes, period = 14) {
             const rsi = new Array(closes.length).fill(null);
@@ -785,6 +883,7 @@
             loadBots();
             loadNews();
             loadLogs();
+            loadApiKeys(); // Added initialization for API keys dropdown
             setInterval(loadBots, 5000); // Refresh bots every 5 seconds
             setInterval(loadNews, 60000); // Refresh news every minute
             setInterval(loadLogs, 3000); // Refresh logs every 3 seconds
@@ -1055,7 +1154,7 @@
                     layout: { background: { color: '#ffffff' }, textColor: '#333' },
                     grid: { vertLines: { color: '#f0f0f0' }, horzLines: { color: '#f0f0f0' } },
                     timeScale: { timeVisible: true, secondsVisible: false },
-                    rightPriceScale: { scaleMargins: { top: 0.05, bottom: 0.4 } } // Bottom reserved for indicators
+                    rightPriceScale: { scaleMargins: { top: 0.05, bottom: 0.45 } } // Adjusted for more indicators
                 });
 
                 const candleSeries = chart.addCandlestickSeries({
@@ -1075,17 +1174,17 @@
                     color: c.close >= c.open ? '#26a69a80' : '#ef535080'
                 })));
 
-                // 3. RSI-7 as overlay on main chart
+                // 3. RSI-7
                 const rsiSeries = chart.addLineSeries({
-                    color: '#2962FF',
-                    lineWidth: 2,
+                    color: '#2d3748',
+                    lineWidth: 1.5,
                     priceScaleId: 'rsi',
                     title: 'RSI-7',
                 });
 
                 chart.priceScale('rsi').applyOptions({
                     scaleMargins: {
-                        top: 0.8,  // RSI at bottom 20%
+                        top: 0.85,
                         bottom: 0,
                     },
                 });
@@ -1095,7 +1194,41 @@
                     value: c.rsi
                 })));
 
-                // 4. Fetch trades and add markers
+                // 4. MACD
+                // Histogram
+                const macdHistSeries = chart.addHistogramSeries({
+                    priceScaleId: 'macd',
+                    title: 'MACD Hist',
+                });
+
+                // MACD Line
+                const macdLineSeries = chart.addLineSeries({
+                    color: '#2962FF',
+                    lineWidth: 1.5,
+                    priceScaleId: 'macd',
+                    title: 'MACD',
+                });
+
+                // Signal Line
+                const macdSignalSeries = chart.addLineSeries({
+                    color: '#FF6D00',
+                    lineWidth: 1.5,
+                    priceScaleId: 'macd',
+                    title: 'Signal',
+                });
+
+                chart.priceScale('macd').applyOptions({
+                    scaleMargins: {
+                        top: 0.6,
+                        bottom: 0.2,
+                    },
+                });
+
+                macdHistSeries.setData(macdValues.histogram);
+                macdLineSeries.setData(macdValues.macd);
+                macdSignalSeries.setData(macdValues.signal);
+
+                // 5. Fetch trades and add markers
                 try {
                     const tradesRes = await fetch(`${API_BASE}/bots/${botId}/trades?limit=50`);
                     if (tradesRes.ok) {
