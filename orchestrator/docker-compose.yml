@@ -23,17 +23,12 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./orchestrator/perplexica-config:/app/config
-      - perplexica_data:/app/data
-    environment:
-      # LLM Configuration (using models from Graphiti server)
-      - OPENAI_API_BASE=http://192.168.1.107:4000/v1
-      - OPENAI_API_KEY=sk-IRi6AuZjLJ50hmzvjoJgxw
-      - CHAT_MODEL=openrouter/xiaomi/mimo-v2-flash:free
-      - EMBEDDING_MODEL=openai/text-embedding-qwen3-embedding-4b
-      - EMBEDDING_API_KEY=sk-XE8pV1z4WTbJBpGQfI5nEg
-      # SearXNG backend configuration
-      - SEARXNG_URL=http://searxng:8080
+      # Mount generated config.json to Perplexica's data directory
+      - ./perplexica-config/config.json:/home/perplexica/data/config.json:rw
+      - perplexica_data:/home/perplexica/data
+    # Environment from generated file (run: python generate_env.py)
+    env_file:
+      - ./perplexica.env
     depends_on:
       - searxng
     networks:

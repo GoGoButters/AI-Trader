@@ -38,6 +38,8 @@ class BotParamsSchema(BaseModel):
     news_check_interval: int = 3600
     min_impact_score: float = 0.3
     initial_balance: float = 1000.0
+    macd_enabled: bool = True
+    news_hard_influence_enabled: bool = False
     exchange_config: ExchangeConfig = ExchangeConfig()
 
 
@@ -72,6 +74,8 @@ async def create_bot(request: CreateBotRequest, db: Session = Depends(get_db)):
     """
     Create and start a new bot instance using custom trading engine.
     """
+    logger.info(f"🆕 Creating bot: {request.name} for {request.pair}")
+
     # Check if bot name already exists
     existing = db.query(BotInstance).filter(BotInstance.name == request.name).first()
     if existing:
@@ -81,39 +85,42 @@ async def create_bot(request: CreateBotRequest, db: Session = Depends(get_db)):
         )
 
     # Create bot instance in database
-    bot = BotInstance(
-        name=request.name,
-        pair=request.pair,
-        timeframe=request.timeframe,
-        mode="demo",  # All bots run in paper trading mode
-        trading_mode=request.trading_mode,
-        leverage=request.leverage,
-        status="starting",
-    )
-
-    db.add(bot)
-    db.flush()  # Get bot ID
-
-    # Create bot parameters
-    params = BotParams(
-        bot_id=bot.id,
-        rsi_period=request.params.rsi_period,
-        rsi_oversold=request.params.rsi_oversold,
-        rsi_overbought=request.params.rsi_overbought,
-        stop_loss=request.params.stop_loss,
-        take_profit=request.params.take_profit,
-        max_position_size=request.params.max_position_size,
-        enable_ai_analysis=request.params.enable_ai_analysis,
-        news_check_interval=request.params.news_check_interval,
-        min_impact_score=request.params.min_impact_score,
-        custom_params=request.params.exchange_config.dict(),
-    )
-
-    db.add(params)
-    db.commit()
-
-    # Start paper trading bot
     try:
+        bot = BotInstance(
+            name=request.name,
+            pair=request.pair,
+            timeframe=request.timeframe,
+            mode="demo",  # All bots run in paper trading mode
+            trading_mode=request.trading_mode,
+            leverage=request.leverage,
+            status="starting",
+        )
+
+        db.add(bot)
+        db.flush()  # Get bot ID
+        logger.info(f"🆔 Created BotInstance with ID: {bot.id}")
+
+        # Create bot parameters
+        params = BotParams(
+            bot_id=bot.id,
+            rsi_period=request.params.rsi_period,
+            rsi_oversold=request.params.rsi_oversold,
+            rsi_overbought=request.params.rsi_overbought,
+            stop_loss=request.params.stop_loss,
+            take_profit=request.params.take_profit,
+            max_position_size=request.params.max_position_size,
+            enable_ai_analysis=request.params.enable_ai_analysis,
+            macd_enabled=request.params.macd_enabled,
+            news_check_interval=request.params.news_check_interval,
+            min_impact_score=request.params.min_impact_score,
+            custom_params=request.params.exchange_config.dict(),
+        )
+
+        db.add(params)
+        db.commit()
+        logger.info(f"✅ Saved BotParams for bot {bot.id}")
+
+        # Start paper trading bot
         await paper_trading_manager.start_bot(
             bot_id=bot.id,
             pair=bot.pair,
@@ -127,16 +134,15 @@ async def create_bot(request: CreateBotRequest, db: Session = Depends(get_db)):
         bot.status = "running"
         bot.started_at = datetime.utcnow()
         db.commit()
+        logger.info(f"🚀 PaperTradingManager started bot {bot.id}")
 
         # Trigger Historical Analysis (Background Task)
         try:
             from ..history_analyzer import start_historical_analysis
 
-            # Store task reference to prevent garbage collection
-            task = asyncio.create_task(
+            asyncio.create_task(
                 start_historical_analysis(bot_id=bot.id, pair=bot.pair, days=10)
             )
-            # Don't await - let it run in background
             logger.info(f"📜 Triggered 10-day historical analysis for bot {bot.id}")
         except Exception as e:
             logger.error(f"❌ Failed to trigger history analysis: {e}")
@@ -145,12 +151,18 @@ async def create_bot(request: CreateBotRequest, db: Session = Depends(get_db)):
         return bot
 
     except Exception as e:
-        bot.status = "error"
-        db.commit()
-        logger.error(f"Failed to start bot {bot.id}: {e}", exc_info=True)
+        logger.error(f"💥 Fatal error during bot creation: {e}", exc_info=True)
+        # Try to mark the bot as error if it was created
+        try:
+            if "bot" in locals() and bot.id:
+                bot.status = "error"
+                db.commit()
+        except:
+            pass
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to start trading bot: {str(e)}",
+            detail=f"Failed to create bot: {str(e)}",
         )
 
 
@@ -172,7 +184,8 @@ async def get_bot(bot_id: int, db: Session = Depends(get_db)):
 
     if not bot:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Bot with ID {bot_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Bot with ID {bot_id} not found",
         )
 
     return bot
@@ -187,7 +200,8 @@ async def start_bot(bot_id: int, db: Session = Depends(get_db)):
 
     if not bot:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Bot with ID {bot_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Bot with ID {bot_id} not found",
         )
 
     if bot.status == "running":
@@ -238,7 +252,8 @@ async def stop_bot(bot_id: int, db: Session = Depends(get_db)):
 
     if not bot:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Bot with ID {bot_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Bot with ID {bot_id} not found",
         )
 
     if bot.status != "running":
@@ -268,7 +283,8 @@ async def delete_bot(bot_id: int, db: Session = Depends(get_db)):
 
     if not bot:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Bot with ID {bot_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Bot with ID {bot_id} not found",
         )
 
     # Stop bot if running
@@ -294,7 +310,8 @@ async def get_bot_status(bot_id: int, db: Session = Depends(get_db)):
 
     if not bot:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Bot with ID {bot_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Bot with ID {bot_id} not found",
         )
 
     # Get paper trading status
@@ -329,7 +346,8 @@ async def get_bot_candles(
 
     if not bot:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Bot with ID {bot_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Bot with ID {bot_id} not found",
         )
 
     # Use bot's pair and timeframe if not provided
@@ -341,7 +359,9 @@ async def get_bot_candles(
 
         # If no candles from manager (bot not running), fetch directly
         if not candles:
-            candles = await paper_trading_manager.fetch_candles_direct(pair, timeframe, limit)
+            candles = await paper_trading_manager.fetch_candles_direct(
+                pair, timeframe, limit
+            )
 
         return candles
     except Exception as e:
@@ -360,7 +380,8 @@ async def get_bot_trades(bot_id: int, limit: int = 100, db: Session = Depends(ge
 
     if not bot:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Bot with ID {bot_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Bot with ID {bot_id} not found",
         )
 
     try:

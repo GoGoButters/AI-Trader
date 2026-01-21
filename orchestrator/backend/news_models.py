@@ -28,7 +28,9 @@ class NewsArticle(Base):
     __tablename__ = "news_articles"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    url_hash = Column(String(64), unique=True, nullable=False, index=True)  # SHA256 hash for dedup
+    url_hash = Column(
+        String(64), unique=True, nullable=False, index=True
+    )  # SHA256 hash for dedup
     title = Column(String(500), nullable=False)
     url = Column(String(1000), nullable=False)
     source = Column(String(100))  # e.g., "CoinDesk", "Twitter", "Reddit"
@@ -69,10 +71,20 @@ class NewsImpactCoefficient(Base):
     confidence = Column(Float)  # 0-1, based on sample size
     sample_count = Column(Integer, default=0)  # How many times seen
 
-    # Time decay - impact at different timeframes
-    impact_1h = Column(Float)  # Impact after 1 hour
-    impact_4h = Column(Float)  # Impact after 4 hours
-    impact_24h = Column(Float)  # Impact after 24 hours
+    # Time decay - impact at different timeframes (all KuCoin supported)
+    impact_1m = Column(Float)  # 1 minute
+    impact_3m = Column(Float)  # 3 minutes
+    impact_5m = Column(Float)  # 5 minutes
+    impact_15m = Column(Float)  # 15 minutes
+    impact_30m = Column(Float)  # 30 minutes
+    impact_1h = Column(Float)  # 1 hour
+    impact_2h = Column(Float)  # 2 hours
+    impact_4h = Column(Float)  # 4 hours
+    impact_6h = Column(Float)  # 6 hours
+    impact_8h = Column(Float)  # 8 hours
+    impact_12h = Column(Float)  # 12 hours
+    impact_1d = Column(Float)  # 1 day (24 hours)
+    impact_1w = Column(Float)  # 1 week
 
     # Timestamps
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -92,7 +104,9 @@ class NewsStrategyAdjustment(Base):
     __tablename__ = "news_strategy_adjustments"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    bot_id = Column(Integer, ForeignKey("bot_instances.id", ondelete="CASCADE"), nullable=False)
+    bot_id = Column(
+        Integer, ForeignKey("bot_instances.id", ondelete="CASCADE"), nullable=False
+    )
     news_id = Column(Integer, ForeignKey("news_articles.id"), nullable=True)
 
     # Adjustment details

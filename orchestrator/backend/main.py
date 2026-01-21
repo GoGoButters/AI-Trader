@@ -87,17 +87,30 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.warning(f"⚠️  LLM client not initialized: {e}")
 
-            # Try to get SearXNG config (replaced Perplexica for better reliability)
+            # Initialize Perplexica AI-powered search
             try:
-                from .searxng_client import SearXNGClient
+                from .perplexica_client import PerplexicaClient
 
-                # Use SearXNG from config
-                searxng_svc = config.get_service("searxng")
-                searxng_url = searxng_svc.url if searxng_svc else "http://searxng:8080"
-                perplexica_client = SearXNGClient(base_url=searxng_url)
-                logger.info(f"✅ SearXNG client: {searxng_url}")
+                # Get Perplexica service config
+                perplexica_svc = config.get_service("perplexica")
+                perplexica_url = (
+                    perplexica_svc.url
+                    if perplexica_svc
+                    else "http://perplexica-search:3000"
+                )
+
+                # Use GPT-4o-mini for fast searches, text-embedding-3-small for embeddings
+                perplexica_client = PerplexicaClient(
+                    base_url=perplexica_url,
+                    chat_model_key="gpt-4o-mini",
+                    embedding_model_key="text-embedding-3-small",
+                )
+
+                # Auto-discover and configure providers
+                await perplexica_client.discover_providers()
+                logger.info(f"✅ Perplexica AI search: {perplexica_url}")
             except Exception as e:
-                logger.warning(f"⚠️  SearXNG client not initialized: {e}")
+                logger.warning(f"⚠️  Perplexica client not initialized: {e}")
 
             # Try to get Graphiti config
             try:
@@ -159,10 +172,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="AI-Trader Orchestrator", version="2.0.0", lifespan=lifespan)
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

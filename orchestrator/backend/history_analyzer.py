@@ -203,7 +203,9 @@ class HistoryAnalyzer:
                                 summary=article.get("content", "")[:2000],
                                 news_type=classification.get("type", "unknown"),
                                 sentiment=classification.get("sentiment", "neutral"),
-                                impact_score=impact_1h,
+                                impact_score=abs(impact_1h) / 100.0
+                                if impact_1h
+                                else 0.0,  # Normalize to 0-1 scale
                                 published_at=pub_date,
                                 related_pair=pair,  # Set the trading pair
                                 created_at=datetime.utcnow(),
@@ -231,8 +233,20 @@ class HistoryAnalyzer:
                     coeff = NewsImpactCoefficient(
                         pair=pair,
                         news_type=classification["type"],
+                        # Initialize all timeframe impacts (will be calculated as data comes in)
+                        impact_1m=0.0,
+                        impact_3m=0.0,
+                        impact_5m=0.0,
+                        impact_15m=0.0,
+                        impact_30m=0.0,
                         impact_1h=0.0,
+                        impact_2h=0.0,
                         impact_4h=0.0,
+                        impact_6h=0.0,
+                        impact_8h=0.0,
+                        impact_12h=0.0,
+                        impact_1d=0.0,
+                        impact_1w=0.0,
                         confidence=0.0,
                         sample_count=0,
                     )

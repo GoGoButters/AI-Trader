@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "setupComplete": true,
+  "preferences": {
+    "theme": "dark"
+  },
+  "personalization": {},
+  "modelProviders": [
+    {
+      "id": "aaccc9b2-40b1-418a-a0ba-62727f8d22d3",
+      "name": "AI-Trader LLM",
+      "type": "openai",
+      "config": {
+        "apiKey": "sk-jClmnTDRFFY1-dzQ98c08Q",
+        "baseURL": "http://192.168.1.107:4000/v1"
+      },
+      "chatModels": [
+        {
+          "name": "openai/openai-reasoning",
+          "key": "openai/openai-reasoning"
+        }
+      ],
+      "embeddingModels": [
+        {
+          "name": "openai/text-embedding-qwen3-embedding-4b",
+          "key": "openai/text-embedding-qwen3-embedding-4b"
+        }
+      ],
+      "hash": "aaccc9b240b1418aa0ba62727f8d22d3"
+    },
+    {
+      "id": "2e8bee95-64a8-4795-add9-f2bdf9d303e8",
+      "name": "OpenAI",
+      "type": "openai",
+      "chatModels": [],
+      "embeddingModels": [],
+      "config": {
+        "apiKey": "sk-jClmnTDRFFY1-dzQ98c08Q",
+        "baseURL": "http://192.168.1.107:4000/v1"
+      },
+      "hash": "ee9680369c4c7fbc2f4efba2c69ad86596b19fab5630b850d60884fc3cbbd7fd"
+    },
+    {
+      "id": "19445b63-8cfa-4b7c-b124-cb881e944cbc",
+      "name": "Transformers",
+      "type": "transformers",
+      "chatModels": [],
+      "embeddingModels": [],
+      "config": {},
+      "hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    }
+  ],
+  "search": {
+    "searxngURL": "http://searxng:8080"
+  }
+}

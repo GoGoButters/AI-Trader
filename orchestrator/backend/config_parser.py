@@ -6,7 +6,7 @@ Uses Pydantic for validation and type safety.
 """
 
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, Union
 from pydantic import BaseModel, Field, field_validator
 import yaml
 import re
@@ -61,7 +61,9 @@ class ServiceConfig(BaseModel):
         if "url" not in parts:
             raise ValueError(f"Service config must contain 'url': {config_string}")
 
-        return cls(url=parts["url"], token=parts.get("token"), api_key=parts.get("api_key"))
+        return cls(
+            url=parts["url"], token=parts.get("token"), api_key=parts.get("api_key")
+        )
 
 
 class KuCoinConfig(BaseModel):
@@ -98,7 +100,7 @@ class OrchestratorConfig(BaseModel):
 class AITraderConfig(BaseModel):
     """Main configuration model"""
 
-    services: Dict[str, str] = Field(default_factory=dict)
+    services: Dict[str, Union[str, Dict[str, Any]]] = Field(default_factory=dict)
     models: Dict[str, str] = Field(default_factory=dict)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     orchestrator: OrchestratorConfig = Field(default_factory=OrchestratorConfig)
@@ -109,9 +111,20 @@ class AITraderConfig(BaseModel):
 
     def parse_services(self):
         """Parse service configurations"""
-        for name, config_str in self.services.items():
+        for name, config in self.services.items():
             try:
-                self._services_parsed[name] = ServiceConfig.from_string(config_str)
+                if isinstance(config, str):
+                    # String format: "url: http://...; token: ..."
+                    self._services_parsed[name] = ServiceConfig.from_string(config)
+                elif isinstance(config, dict):
+                    # Dict format with nested llm/embeddings (e.g., perplexica)
+                    self._services_parsed[name] = ServiceConfig(
+                        url=config.get("url", ""),
+                        token=config.get("token"),
+                        api_key=config.get("api_key"),
+                    )
+                else:
+                    raise ValueError(f"Unsupported config type: {type(config)}")
             except Exception as e:
                 raise ValueError(f"Error parsing service '{name}': {e}")
 

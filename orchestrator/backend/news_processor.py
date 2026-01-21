@@ -13,6 +13,23 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Map bot timeframe to impact column name
+TIMEFRAME_TO_IMPACT = {
+    "1m": "impact_1m",
+    "3m": "impact_3m",
+    "5m": "impact_5m",
+    "15m": "impact_15m",
+    "30m": "impact_30m",
+    "1h": "impact_1h",
+    "2h": "impact_2h",
+    "4h": "impact_4h",
+    "6h": "impact_6h",
+    "8h": "impact_8h",
+    "12h": "impact_12h",
+    "1d": "impact_1d",
+    "1w": "impact_1w",
+}
+
 
 class NewsProcessor:
     """
@@ -130,7 +147,7 @@ class NewsProcessor:
                     )
 
                     await self._process_article(
-                        bot_id, pair, article, enable_hard_influence
+                        bot_id, pair, timeframe, article, enable_hard_influence
                     )
 
                 logger.info(f"✅ Bot {bot_id}: Processed {len(new_articles)} articles")
@@ -216,7 +233,12 @@ class NewsProcessor:
             return articles  # Return all if filter fails
 
     async def _process_article(
-        self, bot_id: int, pair: str, article: Dict, enable_hard_influence: bool
+        self,
+        bot_id: int,
+        pair: str,
+        timeframe: str,
+        article: Dict,
+        enable_hard_influence: bool,
     ):
         """Process single article and adjust strategy if needed"""
         try:
@@ -233,11 +255,12 @@ class NewsProcessor:
                 f"predicted_impact={classification.get('predicted_impact', 'unknown')}"
             )
 
-            # 2. Get learned coefficient
+            # 2. Get learned coefficient for bot's timeframe
             from .database import db
             from .news_models import NewsImpactCoefficient
 
-            impact_1h = 0
+            impact_col = TIMEFRAME_TO_IMPACT.get(timeframe, "impact_1h")
+            impact_value = 0
             confidence = 0
 
             with db.get_session() as session:
@@ -251,12 +274,15 @@ class NewsProcessor:
                 )
 
                 if coeff:
-                    impact_1h = float(coeff.impact_1h or 0)
+                    # Get impact for bot's specific timeframe
+                    impact_value = float(
+                        getattr(coeff, impact_col, None) or coeff.impact_1h or 0
+                    )
                     confidence = float(coeff.confidence or 0)
 
                     logger.debug(
-                        f"📊 Bot {bot_id}: Coefficient found: "
-                        f"impact_1h={impact_1h:+.2f}%, "
+                        f"📊 Bot {bot_id}: Coefficient for {timeframe}: "
+                        f"{impact_col}={impact_value:+.2f}%, "
                         f"confidence={confidence:.2f}, "
                         f"samples={coeff.sample_count}"
                     )
@@ -271,22 +297,22 @@ class NewsProcessor:
                     f"📰 Bot {bot_id}: Skipping adjustment (low confidence: {confidence:.2f})"
                 )
                 # Still save article for future learning
-                await self._save_article(article, classification, pair)
+                await self._save_article(article, classification, pair, impact_value)
                 return
 
             # 4. Adjust strategy if significant impact
-            abs_impact = abs(impact_1h)
+            abs_impact = abs(impact_value)
 
             if (
                 abs_impact > 0.2
             ):  # >0.2% expected movement (lowered from 1.5% for realistic data)
                 logger.info(
                     f"💡 Bot {bot_id}: Adjusting strategy "
-                    f"(impact={impact_1h:+.2f}%, confidence={confidence:.2f})"
+                    f"(impact={impact_value:+.2f}%, confidence={confidence:.2f})"
                 )
 
                 await self._adjust_strategy(
-                    bot_id, classification, impact_1h, enable_hard_influence
+                    bot_id, classification, impact_value, enable_hard_influence
                 )
             else:
                 logger.debug(
@@ -294,7 +320,7 @@ class NewsProcessor:
                 )
 
             # 5. Save article
-            await self._save_article(article, classification, pair)
+            await self._save_article(article, classification, pair, impact_value)
 
         except Exception as e:
             logger.error(
@@ -477,7 +503,9 @@ Output ONLY valid JSON, no other text."""
                 f"❌ Bot {bot_id}: Failed to adjust strategy: {e}", exc_info=True
             )
 
-    async def _save_article(self, article: Dict, classification: Dict, pair: str):
+    async def _save_article(
+        self, article: Dict, classification: Dict, pair: str, impact_score: float = 0.0
+    ):
         """Save article to database"""
         try:
             from .database import db
@@ -512,6 +540,9 @@ Output ONLY valid JSON, no other text."""
                     news_type=classification["type"],
                     sentiment=classification["sentiment"],
                     related_pair=pair,
+                    impact_score=abs(impact_score) / 100.0
+                    if impact_score
+                    else 0.0,  # Convert to 0-1 scale
                 )
 
                 session.add(news)

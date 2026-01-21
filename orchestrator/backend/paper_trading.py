@@ -85,7 +85,9 @@ class PaperTradingEngine:
             # Check if balance already exists
             existing = (
                 session.query(PaperBalance)
-                .filter(PaperBalance.bot_id == self.bot_id, PaperBalance.currency == "USDT")
+                .filter(
+                    PaperBalance.bot_id == self.bot_id, PaperBalance.currency == "USDT"
+                )
                 .first()
             )
 
@@ -154,7 +156,12 @@ class PaperTradingEngine:
                 session.add(order)
                 session.commit()
                 logger.info(f"⏳ Placed pending limit {side} order @ {limit_price}")
-                return {"id": order.id, "status": "pending", "price": limit_price, "side": side}
+                return {
+                    "id": order.id,
+                    "status": "pending",
+                    "price": limit_price,
+                    "side": side,
+                }
 
         # 3. Market Order Execution
         # Calculate slippage (0.05% - 0.1% random)
@@ -196,7 +203,10 @@ class PaperTradingEngine:
                 # Check for existing short to close?
                 existing_short = (
                     session.query(PaperPosition)
-                    .filter(PaperPosition.bot_id == self.bot_id, PaperPosition.side == "short")
+                    .filter(
+                        PaperPosition.bot_id == self.bot_id,
+                        PaperPosition.side == "short",
+                    )
                     .first()
                 )
 
@@ -225,13 +235,18 @@ class PaperTradingEngine:
                 # For Futures Sell = Open Short OR Close Long
                 existing_long = (
                     session.query(PaperPosition)
-                    .filter(PaperPosition.bot_id == self.bot_id, PaperPosition.side == "long")
+                    .filter(
+                        PaperPosition.bot_id == self.bot_id,
+                        PaperPosition.side == "long",
+                    )
                     .first()
                 )
 
                 if existing_long:
                     # Closing Long
-                    return self._close_position_internal(session, existing_long, fill_price, amount)
+                    return self._close_position_internal(
+                        session, existing_long, fill_price, amount
+                    )
 
                 # Open Short
                 balance = self._get_balance(session, "USDT")
@@ -261,7 +276,13 @@ class PaperTradingEngine:
             self._update_metrics(session, 0)  # PnL realized only on close
             session.commit()
 
-            return {"id": trade.id, "side": side, "amount": amount, "price": fill_price, "fee": fee}
+            return {
+                "id": trade.id,
+                "side": side,
+                "amount": amount,
+                "price": fill_price,
+                "fee": fee,
+            }
 
     def _close_position_internal(self, session, position, price, amount):
         """Helper to close position and calculate PnL"""
@@ -269,7 +290,9 @@ class PaperTradingEngine:
         pnl = self._calculate_pnl(position, price)
 
         # Release Margin (Initial Margin was locked)
-        initial_margin = (float(position.entry_price) * float(position.amount)) / position.leverage
+        initial_margin = (
+            float(position.entry_price) * float(position.amount)
+        ) / position.leverage
 
         # Return Margin + PnL - Fee
         fee = (price * amount) * 0.001
@@ -280,7 +303,12 @@ class PaperTradingEngine:
 
         # Record Trade
         trade = self._save_trade(
-            session, "sell" if position.side == "long" else "buy", amount, price, fee, pnl
+            session,
+            "sell" if position.side == "long" else "buy",
+            amount,
+            price,
+            fee,
+            pnl,
         )
         self._update_metrics(session, pnl)
         session.commit()
@@ -291,7 +319,9 @@ class PaperTradingEngine:
         """Get balance for currency"""
         balance = (
             session.query(PaperBalance)
-            .filter(PaperBalance.bot_id == self.bot_id, PaperBalance.currency == currency)
+            .filter(
+                PaperBalance.bot_id == self.bot_id, PaperBalance.currency == currency
+            )
             .first()
         )
 
@@ -304,7 +334,9 @@ class PaperTradingEngine:
         """Get open position for pair"""
         return (
             session.query(PaperPosition)
-            .filter(PaperPosition.bot_id == self.bot_id, PaperPosition.pair == self.pair)
+            .filter(
+                PaperPosition.bot_id == self.bot_id, PaperPosition.pair == self.pair
+            )
             .first()
         )
 
@@ -331,7 +363,9 @@ class PaperTradingEngine:
         session.add(position)
         logger.debug(f"Opened {side} position: {amount} @ ${price}")
 
-    def _close_position(self, session: Session, position_id: int, exit_price: float, pnl: float):
+    def _close_position(
+        self, session: Session, position_id: int, exit_price: float, pnl: float
+    ):
         """Close position"""
         position = session.query(PaperPosition).get(position_id)
         if position:
@@ -374,7 +408,9 @@ class PaperTradingEngine:
         balance.free = Decimal(str(float(balance.free) + delta))
         balance.updated_at = datetime.utcnow()
 
-        logger.debug(f"Updated {currency} balance: {delta:+.2f} -> {float(balance.total):.2f}")
+        logger.debug(
+            f"Updated {currency} balance: {delta:+.2f} -> {float(balance.total):.2f}"
+        )
 
     def _save_trade(
         self,
@@ -402,7 +438,11 @@ class PaperTradingEngine:
 
     def _update_metrics(self, session: Session, pnl: float):
         """Update performance metrics"""
-        metrics = session.query(PaperMetrics).filter(PaperMetrics.bot_id == self.bot_id).first()
+        metrics = (
+            session.query(PaperMetrics)
+            .filter(PaperMetrics.bot_id == self.bot_id)
+            .first()
+        )
 
         if not metrics:
             return
@@ -427,7 +467,10 @@ class PaperTradingEngine:
             if metrics.avg_loss:
                 metrics.avg_loss = Decimal(
                     str(
-                        (float(metrics.avg_loss) * (metrics.losing_trades - 1) + abs(pnl))
+                        (
+                            float(metrics.avg_loss) * (metrics.losing_trades - 1)
+                            + abs(pnl)
+                        )
                         / metrics.losing_trades
                     )
                 )
@@ -436,7 +479,9 @@ class PaperTradingEngine:
 
         # Update win rate
         if metrics.total_trades > 0:
-            metrics.win_rate = Decimal(str((metrics.winning_trades / metrics.total_trades) * 100))
+            metrics.win_rate = Decimal(
+                str((metrics.winning_trades / metrics.total_trades) * 100)
+            )
 
         # Update drawdown
         balance = self._get_balance(session, "USDT")
@@ -445,11 +490,21 @@ class PaperTradingEngine:
         if current_total > float(metrics.peak_balance):
             metrics.peak_balance = Decimal(str(current_total))
 
-        drawdown = (float(metrics.peak_balance) - current_total) / float(metrics.peak_balance)
+        drawdown = (float(metrics.peak_balance) - current_total) / float(
+            metrics.peak_balance
+        )
         if drawdown > float(metrics.max_drawdown or 0):
             metrics.max_drawdown = Decimal(str(drawdown))
 
         metrics.updated_at = datetime.utcnow()
+
+        # Sync to BotInstance for UI display
+        from .models import BotInstance
+
+        bot = session.query(BotInstance).filter(BotInstance.id == self.bot_id).first()
+        if bot:
+            bot.total_trades = metrics.total_trades
+            bot.current_profit = float(metrics.total_pnl)
 
     async def check_liquidations(self):
         """Check if any positions should be liquidated"""
@@ -489,7 +544,12 @@ class PaperTradingEngine:
 
                 # Record liquidation trade
                 self._save_trade(
-                    session, "sell", float(position.amount), liq_price, liquidation_fee, pnl
+                    session,
+                    "sell",
+                    float(position.amount),
+                    liq_price,
+                    liquidation_fee,
+                    pnl,
                 )
 
                 session.commit()
@@ -516,7 +576,11 @@ class PaperTradingEngine:
             }
 
     async def process_pending_orders(
-        self, candle_open: float, candle_high: float, candle_low: float, candle_close: float
+        self,
+        candle_open: float,
+        candle_high: float,
+        candle_low: float,
+        candle_close: float,
     ):
         """
         Check pending orders against candle High/Low.
@@ -525,7 +589,9 @@ class PaperTradingEngine:
         with db.get_session() as session:
             pending_orders = (
                 session.query(PaperOrder)
-                .filter(PaperOrder.bot_id == self.bot_id, PaperOrder.status == "pending")
+                .filter(
+                    PaperOrder.bot_id == self.bot_id, PaperOrder.status == "pending"
+                )
                 .all()
             )
 
